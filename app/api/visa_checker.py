@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import Service, Order, VisaDocumentCheck, UploadedDocument, DocumentAnalysis
 from ..schemas import (
     VisaCheckResponse,
@@ -49,13 +50,21 @@ async def upload_visa_document(
     check_id: str = Form(...),
     document_type: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Saves an uploaded document file inside a local directory and logs file metadata.
     """
-    # Verify that the VisaCheck reference exists
-    check = db.query(VisaDocumentCheck).filter(VisaDocumentCheck.id == check_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    # Verify that the VisaCheck reference exists and belongs to the user
+    check = db.query(VisaDocumentCheck).filter(
+        VisaDocumentCheck.id == check_id,
+        VisaDocumentCheck.user_id == user_id
+    ).first()
     if not check:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -106,15 +115,23 @@ async def upload_visa_document(
 def analyze_visa_documents(
     check_id: str,
     bypass_check: bool = Query(False),  # Developer bypass check helper
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Performs AI visa validation checks across all uploaded documents under the check ID.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     if not bypass_check:
         verify_visa_checker_purchase(db)
 
-    check = db.query(VisaDocumentCheck).filter(VisaDocumentCheck.id == check_id).first()
+    check = db.query(VisaDocumentCheck).filter(
+        VisaDocumentCheck.id == check_id,
+        VisaDocumentCheck.user_id == user_id
+    ).first()
     if not check:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -186,13 +203,18 @@ def analyze_visa_documents(
 @router.post("/api/visa-check/start", response_model=VisaCheckResponse, status_code=status.HTTP_201_CREATED)
 def start_visa_check(
     payload: VisaCheckStart,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Initiates a new visa checklist record in the database.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     db_check = VisaDocumentCheck(
-        user_id="guest_user",
+        user_id=user_id,
         country=payload.country,
         visa_type=payload.visa_type,
         readiness_score=0,
@@ -205,19 +227,35 @@ def start_visa_check(
 
 
 @router.get("/api/visa-check/history", response_model=List[VisaCheckResponse])
-def get_visa_check_history(db: Session = Depends(get_db)):
+def get_visa_check_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves all previously recorded visa document checks.
     """
-    return db.query(VisaDocumentCheck).order_by(desc(VisaDocumentCheck.updated_at)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(VisaDocumentCheck).filter(VisaDocumentCheck.user_id == user_id).order_by(desc(VisaDocumentCheck.updated_at)).all()
 
 
 @router.get("/api/visa-check/{check_id}", response_model=VisaCheckResponse)
-def get_visa_check_by_id(check_id: str, db: Session = Depends(get_db)):
+def get_visa_check_by_id(
+    check_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves a specific visa document check report and file list logs.
     """
-    check = db.query(VisaDocumentCheck).filter(VisaDocumentCheck.id == check_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    check = db.query(VisaDocumentCheck).filter(
+        VisaDocumentCheck.id == check_id,
+        VisaDocumentCheck.user_id == user_id
+    ).first()
     if not check:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -227,11 +265,21 @@ def get_visa_check_by_id(check_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/api/visa-check/{check_id}", status_code=status.HTTP_200_OK)
-def delete_visa_check(check_id: str, db: Session = Depends(get_db)):
+def delete_visa_check(
+    check_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Deletes the document checking record and files.
     """
-    check = db.query(VisaDocumentCheck).filter(VisaDocumentCheck.id == check_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    check = db.query(VisaDocumentCheck).filter(
+        VisaDocumentCheck.id == check_id,
+        VisaDocumentCheck.user_id == user_id
+    ).first()
     if not check:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

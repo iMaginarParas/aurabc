@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import Service, Order, SOPDocument, SOPVersion
 from ..schemas import (
     SOPGenerateRequest,
@@ -46,12 +47,16 @@ def verify_sop_purchase(db: Session):
 @router.post("/api/sop/generate", response_model=SOPDocumentResponse, status_code=status.HTTP_201_CREATED)
 def generate_sop(
     payload: SOPGenerateRequest,
-    bypass_check: bool = Query(False),  # Developer bypass check helper
-    db: Session = Depends(get_db)
+    bypass_check: bool = Query(False),  # Developer bypass purchase lock
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Validates purchase lock, generates Statement of Purpose, and creates database records.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     if not bypass_check:
         verify_sop_purchase(db)
 
@@ -69,7 +74,7 @@ def generate_sop(
 
         # 1. Create Document record
         db_doc = SOPDocument(
-            user_id="guest_user",
+            user_id=user_id,
             title=title,
             target_country=target_country,
             target_university=target_university,
@@ -151,12 +156,20 @@ def regenerate_sop(
 def rewrite_sop(
     document_id: str,
     payload: SOPRewriteRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Performs section rewrite edits (grammar, vocabulary, professionalize, expand, etc.) and autosaves.
     """
-    db_doc = db.query(SOPDocument).filter(SOPDocument.id == document_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    db_doc = db.query(SOPDocument).filter(
+        SOPDocument.id == document_id,
+        SOPDocument.user_id == user_id
+    ).first()
     if not db_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -188,12 +201,20 @@ def rewrite_sop(
 def save_sop(
     document_id: str,
     payload: SOPDocumentSave,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Manually or autosaves text modifications from the rich text editor dashboard.
     """
-    db_doc = db.query(SOPDocument).filter(SOPDocument.id == document_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    db_doc = db.query(SOPDocument).filter(
+        SOPDocument.id == document_id,
+        SOPDocument.user_id == user_id
+    ).first()
     if not db_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -208,19 +229,35 @@ def save_sop(
 
 
 @router.get("/api/sop/history", response_model=List[SOPDocumentResponse])
-def get_sop_history(db: Session = Depends(get_db)):
+def get_sop_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves all previously drafted SOP document cards.
     """
-    return db.query(SOPDocument).order_by(desc(SOPDocument.updated_at)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(SOPDocument).filter(SOPDocument.user_id == user_id).order_by(desc(SOPDocument.updated_at)).all()
 
 
 @router.get("/api/sop/{document_id}", response_model=SOPDocumentResponse)
-def get_sop_by_id(document_id: str, db: Session = Depends(get_db)):
+def get_sop_by_id(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves a specific SOP document and its full version history logs.
     """
-    db_doc = db.query(SOPDocument).filter(SOPDocument.id == document_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    db_doc = db.query(SOPDocument).filter(
+        SOPDocument.id == document_id,
+        SOPDocument.user_id == user_id
+    ).first()
     if not db_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -230,11 +267,21 @@ def get_sop_by_id(document_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/api/sop/{document_id}", status_code=status.HTTP_200_OK)
-def delete_sop(document_id: str, db: Session = Depends(get_db)):
+def delete_sop(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Deletes the document from log registers.
     """
-    db_doc = db.query(SOPDocument).filter(SOPDocument.id == document_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    db_doc = db.query(SOPDocument).filter(
+        SOPDocument.id == document_id,
+        SOPDocument.user_id == user_id
+    ).first()
     if not db_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

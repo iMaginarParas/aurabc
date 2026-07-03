@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import (
     Application,
     ApplicationTask,
@@ -31,17 +32,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["applications"])
 
 
-@router.post("/api/applications", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 def create_application(
     payload: ApplicationCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Creates a new university application pipeline record and sets up default task items.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     try:
         app_rec = Application(
-            user_id="guest_user",
+            user_id=user_id,
             university=payload.university,
             country=payload.country,
             course=payload.course,
@@ -101,13 +105,13 @@ def create_application(
             )
             db.add(db_cal)
 
-        # 5. Log Dashboard Activity
-        db_act = DashboardActivity(
-            user_id="guest_user",
+        # 4. Log to Dashboard activity tracker
+        activity = DashboardActivity(
+            user_id=user_id,
             activity_type="Application",
             description=f"Started tracking application for {payload.university}."
         )
-        db.add(db_act)
+        db.add(activity)
 
         db.commit()
         db.refresh(app_rec)
@@ -122,26 +126,40 @@ def create_application(
 
 @router.get("/api/applications", response_model=List[ApplicationResponse])
 def get_applications(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Lists all university applications tracked by the student.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(Application).filter(
-        Application.user_id == "guest_user"
+        Application.user_id == user_id
     ).order_by(desc(Application.updated_at)).all()
 
 
 @router.get("/api/applications/{app_id}", response_model=ApplicationResponse)
-def get_application_by_id(app_id: str, db: Session = Depends(get_db)):
+def get_application_by_id(
+    app_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves detailed logs for a single application.
     """
-    app_rec = db.query(Application).filter(Application.id == app_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    app_rec = db.query(Application).filter(
+        Application.id == app_id,
+        Application.user_id == user_id
+    ).first()
     if not app_rec:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application record not found."
+            detail="Application record not found or access denied."
         )
     return app_rec
 
@@ -150,16 +168,23 @@ def get_application_by_id(app_id: str, db: Session = Depends(get_db)):
 def update_application(
     app_id: str,
     payload: ApplicationUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Updates application properties (including drag pipeline status updates).
     """
-    app_rec = db.query(Application).filter(Application.id == app_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    app_rec = db.query(Application).filter(
+        Application.id == app_id,
+        Application.user_id == user_id
+    ).first()
     if not app_rec:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application record not found."
+            detail="Application record not found or access denied."
         )
 
     # Track status change for timeline logging
@@ -187,11 +212,21 @@ def update_application(
 
 
 @router.delete("/api/applications/{app_id}", status_code=status.HTTP_200_OK)
-def delete_application(app_id: str, db: Session = Depends(get_db)):
+def delete_application(
+    app_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Removes the application workspace from the database.
     """
-    app_rec = db.query(Application).filter(Application.id == app_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    app_rec = db.query(Application).filter(
+        Application.id == app_id,
+        Application.user_id == user_id
+    ).first()
     if not app_rec:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -205,16 +240,23 @@ def delete_application(app_id: str, db: Session = Depends(get_db)):
 @router.post("/api/application/tasks", response_model=ApplicationTaskResponse, status_code=status.HTTP_201_CREATED)
 def create_application_task(
     payload: TaskCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Adds a custom checklist task under an application.
     """
-    app_rec = db.query(Application).filter(Application.id == payload.application_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    app_rec = db.query(Application).filter(
+        Application.id == payload.application_id,
+        Application.user_id == user_id
+    ).first()
     if not app_rec:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application reference not found."
+            detail="Application reference not found or access denied."
         )
 
     db_task = ApplicationTask(
@@ -241,15 +283,25 @@ def create_application_task(
 
 
 @router.put("/api/application/tasks/{task_id}/toggle", response_model=ApplicationTaskResponse)
-def toggle_task_status(task_id: str, db: Session = Depends(get_db)):
+def toggle_task_status(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Toggles a task between completed and pending.
     """
-    db_task = db.query(ApplicationTask).filter(ApplicationTask.id == task_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    db_task = db.query(ApplicationTask).join(Application).filter(
+        ApplicationTask.id == task_id,
+        Application.user_id == user_id
+    ).first()
     if not db_task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task record not found."
+            detail="Task record not found or access denied."
         )
 
     db_task.status = "completed" if db_task.status == "pending" else "pending"
@@ -270,11 +322,26 @@ def toggle_task_status(task_id: str, db: Session = Depends(get_db)):
 @router.post("/api/application/documents", response_model=ApplicationDocumentResponse, status_code=status.HTTP_201_CREATED)
 def update_application_document_status(
     payload: DocumentCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Creates or updates the upload verification status of a document checklist slot.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    
+    app_rec = db.query(Application).filter(
+        Application.id == payload.application_id,
+        Application.user_id == user_id
+    ).first()
+    if not app_rec:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application reference not found or access denied."
+        )
+
     db_doc = db.query(ApplicationDocument).filter(
         ApplicationDocument.application_id == payload.application_id,
         ApplicationDocument.document_name == payload.document_name
@@ -309,11 +376,26 @@ def update_application_document_status(
 @router.post("/api/application/notes", response_model=ApplicationNoteResponse, status_code=status.HTTP_201_CREATED)
 def create_application_note(
     payload: NoteCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Appends a text note under an application profile.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    
+    app_rec = db.query(Application).filter(
+        Application.id == payload.application_id,
+        Application.user_id == user_id
+    ).first()
+    if not app_rec:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application reference not found or access denied."
+        )
+
     db_note = ApplicationNote(
         application_id=payload.application_id,
         title=payload.title,
@@ -326,8 +408,16 @@ def create_application_note(
 
 
 @router.get("/api/application/calendar", response_model=List[ApplicationCalendarResponse])
-def get_application_calendar_events(db: Session = Depends(get_db)):
+def get_application_calendar_events(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Gathers all scheduled deadlines and reminders.
     """
-    return db.query(ApplicationCalendarItem).order_by(ApplicationCalendarItem.event_date).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(ApplicationCalendarItem).filter(
+        ApplicationCalendarItem.user_id == user_id
+    ).order_by(ApplicationCalendarItem.event_date).all()

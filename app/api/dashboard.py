@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from typing import List, Dict, Any
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import (
     EligibilityRequest,
     Order,
@@ -35,12 +36,20 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/api/dashboard", response_model=DashboardOverviewResponse)
-def get_dashboard_overview(db: Session = Depends(get_db)):
+def get_dashboard_overview(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Assembles overall statistics, active payments, notifications, and calendars.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    user_email = current_user.get("email")
+
     # 1. Profile completeness calculation
-    profile = db.query(EligibilityRequest).first()
+    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
     completeness = 40  # Default fallback base score
     if profile:
         score = 0
@@ -57,31 +66,33 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
 
     # 2. Purchased premium services slugs
     paid_services = db.query(Service.slug).join(Order).filter(
-        Order.payment_status == "paid"
+        Order.payment_status == "paid",
+        Order.user_id == user_id
     ).all()
     purchased_slugs = [item[0] for item in paid_services]
 
     # 3. Aggregates counts
     unread_notifications = db.query(Notification).filter(
-        Notification.user_id == "guest_user",
+        Notification.user_id == user_id,
         Notification.is_read == False
     ).count()
 
-    sop_count = db.query(SOPDocument).count()
+    sop_count = db.query(SOPDocument).filter(SOPDocument.user_id == user_id).count()
     visa_count = db.query(VisaDocumentCheck).filter(
+        VisaDocumentCheck.user_id == user_id,
         VisaDocumentCheck.readiness_score > 0
     ).count()
     total_drafts = sop_count + visa_count
 
-    total_payments = db.query(Payment).count()
+    total_payments = db.query(Payment).join(Order).filter(Order.user_id == user_id).count()
 
     # 4. Logs checklists
     recent_activities = db.query(DashboardActivity).filter(
-        DashboardActivity.user_id == "guest_user"
+        DashboardActivity.user_id == user_id
     ).order_by(desc(DashboardActivity.created_at)).limit(5).all()
 
     upcoming_appointments = db.query(Appointment).filter(
-        Appointment.user_id == "guest_user",
+        Appointment.user_id == user_id,
         Appointment.status == "upcoming"
     ).order_by(Appointment.date_time).limit(5).all()
 
@@ -97,11 +108,18 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
 
 
 @router.get("/api/profile", response_model=StudentProfileResponse)
-def get_student_profile(db: Session = Depends(get_db)):
+def get_student_profile(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves student profile parameters from eligibility logs.
     """
-    profile = db.query(EligibilityRequest).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_email = current_user.get("email")
+
+    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
     if not profile:
         # Return fallback mock profile
         return {
@@ -130,15 +148,24 @@ def get_student_profile(db: Session = Depends(get_db)):
 
 
 @router.put("/api/profile", response_model=StudentProfileResponse)
-def update_student_profile(payload: StudentProfileUpdate, db: Session = Depends(get_db)):
+def update_student_profile(
+    payload: StudentProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Updates or inserts the student profile parameters in the database logs.
     """
-    profile = db.query(EligibilityRequest).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    user_email = current_user.get("email")
+
+    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
     if not profile:
         profile = EligibilityRequest(
             full_name=payload.full_name,
-            email="priyan.bose@gmail.com",
+            email=user_email,
             phone=payload.phone,
             country_residence=payload.country_residence,
             nationality=payload.nationality,
@@ -165,7 +192,7 @@ def update_student_profile(payload: StudentProfileUpdate, db: Session = Depends(
 
     # Log dashboard activity
     activity = DashboardActivity(
-        user_id="guest_user",
+        user_id=user_id,
         activity_type="Profile",
         description="Updated profile information settings."
     )
@@ -187,12 +214,19 @@ def update_student_profile(payload: StudentProfileUpdate, db: Session = Depends(
 
 
 @router.get("/api/reports")
-def get_compiled_ai_reports(db: Session = Depends(get_db)):
+def get_compiled_ai_reports(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Aggregates Eligibility, SOP drafts, and Visa documents.
     """
-    sops = db.query(SOPDocument).order_by(desc(SOPDocument.updated_at)).all()
-    visas = db.query(VisaDocumentCheck).order_by(desc(VisaDocumentCheck.updated_at)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    sops = db.query(SOPDocument).filter(SOPDocument.user_id == user_id).order_by(desc(SOPDocument.updated_at)).all()
+    visas = db.query(VisaDocumentCheck).filter(VisaDocumentCheck.user_id == user_id).order_by(desc(VisaDocumentCheck.updated_at)).all()
 
     sop_list = []
     for s in sops:
@@ -221,11 +255,18 @@ def get_compiled_ai_reports(db: Session = Depends(get_db)):
 
 
 @router.get("/api/payments")
-def get_billing_history(db: Session = Depends(get_db)):
+def get_billing_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Lists payments and service slug details.
     """
-    payments = db.query(Payment).join(Order).order_by(desc(Payment.transaction_date)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    payments = db.query(Payment).join(Order).filter(Order.user_id == user_id).order_by(desc(Payment.transaction_date)).all()
     invoice_list = []
     for p in payments:
         invoice_list.append({
@@ -241,35 +282,63 @@ def get_billing_history(db: Session = Depends(get_db)):
 
 
 @router.get("/api/documents", response_model=List[UploadedDocumentResponse])
-def get_uploaded_documents_vault(db: Session = Depends(get_db)):
+def get_documents_vault(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
-    Fetches all uploaded document files from the Document Vault.
+    Retrieves all files logged under document checker.
     """
-    return db.query(UploadedDocument).order_by(desc(UploadedDocument.created_at)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(UploadedDocument).join(VisaDocumentCheck).filter(VisaDocumentCheck.user_id == user_id).all()
 
 
 @router.get("/api/appointments", response_model=List[AppointmentResponse])
-def get_appointments_calendar(db: Session = Depends(get_db)):
+def get_appointments_calendar(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves all consulting meetings.
     """
-    return db.query(Appointment).filter(Appointment.user_id == "guest_user").order_by(Appointment.date_time).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(Appointment).filter(Appointment.user_id == user_id).order_by(Appointment.date_time).all()
 
 
 @router.get("/api/notifications", response_model=List[NotificationResponse])
-def get_notifications(db: Session = Depends(get_db)):
+def get_notifications(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves recent logs for notification updates.
     """
-    return db.query(Notification).filter(Notification.user_id == "guest_user").order_by(desc(Notification.created_at)).all()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    return db.query(Notification).filter(Notification.user_id == user_id).order_by(desc(Notification.created_at)).all()
 
 
 @router.put("/api/notifications/read/{notif_id}", response_model=NotificationResponse)
-def mark_notification_as_read(notif_id: str, db: Session = Depends(get_db)):
+def mark_notification_as_read(
+    notif_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Updates the is_read state of a notification.
     """
-    notif = db.query(Notification).filter(Notification.id == notif_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    notif = db.query(Notification).filter(
+        Notification.id == notif_id,
+        Notification.user_id == user_id
+    ).first()
     if not notif:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -282,11 +351,21 @@ def mark_notification_as_read(notif_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/api/notifications/{notif_id}")
-def delete_notification(notif_id: str, db: Session = Depends(get_db)):
+def delete_notification(
+    notif_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Deletes the notification record from the DB logs.
     """
-    notif = db.query(Notification).filter(Notification.id == notif_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    notif = db.query(Notification).filter(
+        Notification.id == notif_id,
+        Notification.user_id == user_id
+    ).first()
     if not notif:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -298,15 +377,22 @@ def delete_notification(notif_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/settings", response_model=UserSettingResponse)
-def get_user_settings(db: Session = Depends(get_db)):
+def get_user_settings(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves notification settings.
     """
-    setting = db.query(UserSetting).filter(UserSetting.user_id == "guest_user").first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    setting = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
     if not setting:
         # Create and return default setting
         setting = UserSetting(
-            user_id="guest_user",
+            user_id=user_id,
             email_notifications=True,
             sms_notifications=False,
             marketing_emails=False,
@@ -320,13 +406,21 @@ def get_user_settings(db: Session = Depends(get_db)):
 
 
 @router.put("/api/settings", response_model=UserSettingResponse)
-def update_user_settings(payload: UserSettingUpdate, db: Session = Depends(get_db)):
+def update_user_settings(
+    payload: UserSettingUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Updates notification settings in the DB.
     """
-    setting = db.query(UserSetting).filter(UserSetting.user_id == "guest_user").first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    setting = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
     if not setting:
-        setting = UserSetting(user_id="guest_user")
+        setting = UserSetting(user_id=user_id)
         db.add(setting)
 
     setting.email_notifications = payload.email_notifications

@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from typing import List, Optional, Dict, Any
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import (
     Scholarship,
     ScholarshipMatch,
@@ -32,18 +33,22 @@ router = APIRouter(tags=["scholarships"])
 @router.post("/api/scholarships/match", response_model=List[Dict] if not None else Any)
 def match_scholarships(
     payload: ScholarshipProfileInput,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Evaluates student credentials and preferred countries against catalog to return recommended opportunities.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     try:
         profile_dict = payload.model_dump()
         recs = evaluate_scholarship_matches_ai(db, profile_dict)
 
         # Log match session
         db_match = ScholarshipMatch(
-            user_id="guest_user",
+            user_id=user_id,
             profile_data=profile_dict,
             recommendations=recs
         )
@@ -66,19 +71,6 @@ def match_scholarships(
         )
 
 
-@router.post("/api/scholarships/funding-plan")
-def calculate_funding_plan(
-    payload: Dict, # General dict for flexible budget parameters
-    db: Session = Depends(get_db)
-):
-    """
-    Evaluates budget items, calculates gaps, safety scores, and writes plans suggestions.
-    """
-    try:
-        tuition = payload.get("tuition_fee", 0.0)
-        living = payload.get("living_cost", 0.0)
-        travel = payload.get("travel_cost", 0.0)
-        visa = payload.get("visa_cost", 0.0)
         insurance = payload.get("insurance", 0.0)
         misc = payload.get("misc_expenses", 0.0)
 
@@ -105,7 +97,7 @@ def calculate_funding_plan(
         ai_res = evaluate_funding_planner_ai({}, planner_data)
 
         db_plan = FundingPlan(
-            user_id="guest_user",
+            user_id=user_id,
             tuition_fee=tuition,
             living_cost=living,
             travel_cost=travel,
@@ -125,7 +117,7 @@ def calculate_funding_plan(
 
         # Create scholarship reports entry
         db_report = ScholarshipReport(
-            user_id="guest_user",
+            user_id=user_id,
             report_data={
                 "funding_summary": planner_data,
                 "ai_advices": ai_res
@@ -148,26 +140,37 @@ def calculate_funding_plan(
 
 
 @router.get("/api/scholarships/history")
-def get_matching_history(db: Session = Depends(get_db)):
+def get_matching_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Gathers previous matching sessions logs.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(ScholarshipMatch).filter(
-        ScholarshipMatch.user_id == "guest_user"
+        ScholarshipMatch.user_id == user_id
     ).order_by(desc(ScholarshipMatch.created_at)).all()
 
 
 @router.post("/api/scholarships/save")
 def save_scholarship_bookmark(
     payload: Dict,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Saves/Bookmarks a recommended scholarship.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     # Check duplicate
     existing = db.query(SavedScholarship).filter(
-        SavedScholarship.user_id == "guest_user",
+        SavedScholarship.user_id == user_id,
         SavedScholarship.name == payload.get("name")
     ).first()
 
@@ -175,7 +178,7 @@ def save_scholarship_bookmark(
         return existing
 
     db_fav = SavedScholarship(
-        user_id="guest_user",
+        user_id=user_id,
         name=payload.get("name"),
         provider=payload.get("provider", "Global"),
         country=payload.get("country", "Global"),
@@ -188,7 +191,7 @@ def save_scholarship_bookmark(
     # Generate calendar deadline alert
     if payload.get("deadline"):
         db.add(ScholarshipDeadline(
-            user_id="guest_user",
+            user_id=user_id,
             event_title=f"Apply for {payload.get('name')}",
             event_type="Deadline",
             event_date=payload.get("deadline")
@@ -200,23 +203,36 @@ def save_scholarship_bookmark(
 
 
 @router.get("/api/scholarships/saved")
-def get_saved_scholarships(db: Session = Depends(get_db)):
+def get_saved_scholarships(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Gathers all bookmarked scholarships.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(SavedScholarship).filter(
-        SavedScholarship.user_id == "guest_user"
+        SavedScholarship.user_id == user_id
     ).order_by(desc(SavedScholarship.created_at)).all()
 
 
 @router.delete("/api/scholarships/saved/{fav_id}")
-def remove_saved_scholarship(fav_id: str, db: Session = Depends(get_db)):
+def remove_saved_scholarship(
+    fav_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Removes a scholarship from saved checklist.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     fav = db.query(SavedScholarship).filter(
         SavedScholarship.id == fav_id,
-        SavedScholarship.user_id == "guest_user"
+        SavedScholarship.user_id == user_id
     ).first()
     if not fav:
         raise HTTPException(
@@ -229,10 +245,16 @@ def remove_saved_scholarship(fav_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/scholarships/deadlines")
-def get_scholarships_deadlines_calendar(db: Session = Depends(get_db)):
+def get_scholarships_deadlines_calendar(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Returns dates for saved scholarship applications.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(ScholarshipDeadline).filter(
-        ScholarshipDeadline.user_id == "guest_user"
+        ScholarshipDeadline.user_id == user_id
     ).order_by(ScholarshipDeadline.event_date).all()

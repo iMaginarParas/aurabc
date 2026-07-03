@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from typing import List
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import University, UniversityMatch, SavedUniversity, UniversityComparison, DashboardActivity
 from ..schemas import (
     UniversityResponse,
@@ -24,11 +25,15 @@ router = APIRouter(tags=["university_matcher"])
 @router.post("/api/university-matcher", response_model=UniversityMatchResponse)
 def match_universities(
     payload: UniversityProfileInput,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Submits student profiles to OpenAI to generate matched university recommendations.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     try:
         # Convert profile to standard dict for prompt parser
         profile_dict = payload.model_dump()
@@ -38,7 +43,7 @@ def match_universities(
         
         # Log to Database
         db_match = UniversityMatch(
-            user_id="guest_user",
+            user_id=user_id,
             profile_data=profile_dict,
             recommendations=recs
         )
@@ -46,7 +51,7 @@ def match_universities(
         
         # Add to Dashboard activity log
         activity = DashboardActivity(
-            user_id="guest_user",
+            user_id=user_id,
             activity_type="University Match",
             description=f"Generated {len(recs)} university matches for {payload.course}."
         )
@@ -64,12 +69,18 @@ def match_universities(
 
 
 @router.get("/api/university-matcher/history", response_model=List[UniversityMatchResponse])
-def get_matcher_history(db: Session = Depends(get_db)):
+def get_matcher_history(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Retrieves previous matching results.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(UniversityMatch).filter(
-        UniversityMatch.user_id == "guest_user"
+        UniversityMatch.user_id == user_id
     ).order_by(desc(UniversityMatch.created_at)).all()
 
 
@@ -98,14 +109,19 @@ def get_universities_catalog(db: Session = Depends(get_db)):
 @router.post("/api/university/save", response_model=SavedUniversityResponse, status_code=status.HTTP_201_CREATED)
 def save_university_to_favorites(
     payload: SaveUniversityRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Saves a matched course recommendation to the student's favorites list.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     # Check if already saved
     existing = db.query(SavedUniversity).filter(
-        SavedUniversity.user_id == "guest_user",
+        SavedUniversity.user_id == user_id,
         SavedUniversity.name == payload.name,
         SavedUniversity.course == payload.course
     ).first()
@@ -114,7 +130,7 @@ def save_university_to_favorites(
         return existing
         
     db_fav = SavedUniversity(
-        user_id="guest_user",
+        user_id=user_id,
         name=payload.name,
         country=payload.country,
         course=payload.course,
@@ -128,23 +144,36 @@ def save_university_to_favorites(
 
 
 @router.get("/api/university/saved", response_model=List[SavedUniversityResponse])
-def get_saved_universities(db: Session = Depends(get_db)):
+def get_saved_universities(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Lists all saved universities.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     return db.query(SavedUniversity).filter(
-        SavedUniversity.user_id == "guest_user"
+        SavedUniversity.user_id == user_id
     ).order_by(desc(SavedUniversity.created_at)).all()
 
 
 @router.delete("/api/university/saved/{fav_id}", status_code=status.HTTP_200_OK)
-def remove_saved_university(fav_id: str, db: Session = Depends(get_db)):
+def remove_saved_university(
+    fav_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Removes a university from the saved list.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     fav = db.query(SavedUniversity).filter(
         SavedUniversity.id == fav_id,
-        SavedUniversity.user_id == "guest_user"
+        SavedUniversity.user_id == user_id
     ).first()
     if not fav:
         raise HTTPException(
@@ -159,13 +188,17 @@ def remove_saved_university(fav_id: str, db: Session = Depends(get_db)):
 @router.post("/api/university/compare", response_model=ComparisonResponse, status_code=status.HTTP_201_CREATED)
 def save_comparison_matrix(
     payload: ComparisonRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Saves a side-by-side compared matrices configuration.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     db_comp = UniversityComparison(
-        user_id="guest_user",
+        user_id=user_id,
         name=payload.name,
         data=payload.data
     )
