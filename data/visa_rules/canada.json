@@ -1,0 +1,29 @@
+{
+  "country": "Canada",
+  "required_documents": [
+    "Passport",
+    "Letter of Acceptance",
+    "Bank Statements",
+    "IELTS / TOEFL / PTE"
+  ],
+  "optional_documents": [
+    "SOP",
+    "Financial Affidavit",
+    "Academic Certificates",
+    "Transcripts"
+  ],
+  "validation_rules": {
+    "Passport": "Must be valid for at least 6 months. Ideal validity should cover the entire duration of the study program.",
+    "Letter of Acceptance": "Must be from a Designated Learning Institution (DLI) with a valid DLI number and clearly outline tuition cost, program length, and start date.",
+    "Bank Statements": "Must prove minimum $20,635 CAD living costs for SDS stream plus first-year tuition fees. Proof of Guaranteed Investment Certificate (GIC) of $20,635 CAD is mandatory for SDS.",
+    "Language Test": "For Student Direct Stream (SDS), IELTS Academic overall band score of 6.0 or higher with no individual band score less than 6.0 is required."
+  },
+  "critical_rules": [
+    "Verify DLI status of target institution.",
+    "GIC payment of $20,635 CAD is mandatory for SDS filing.",
+    "Passport expiration date must be after targeted study program completion."
+  ],
+  "ai_instructions": "Check for GIC certificate logs, verify DLI numbers, and double check that the passport is valid beyond program duration.",
+  "pass_examples": "GIC of $20,635 CAD paid, Letter of Acceptance from DLI college, IELTS overall 6.5 band.",
+  "fail_examples": "No GIC receipt attached, IELTS score band of 5.5, Passport expires in 3 months."
+}

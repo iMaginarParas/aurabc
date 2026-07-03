@@ -1,0 +1,29 @@
+{
+  "country": "USA",
+  "required_documents": [
+    "Passport",
+    "Form I-20",
+    "SEVIS Fee Receipt",
+    "DS-160 Confirmation Page"
+  ],
+  "optional_documents": [
+    "Bank Statements",
+    "SOP",
+    "Financial Affidavit",
+    "IELTS / TOEFL / PTE"
+  ],
+  "validation_rules": {
+    "Passport": "Must be valid for travel to the United States. Expiration date must be at least six months beyond the student's period of stay.",
+    "Form I-20": "Must be officially signed by the DSO and the student. Program start date must not be in the past.",
+    "SEVIS Fee": "Receipt for I-901 payment ($350 for F-1 visa) must match SEVIS ID from Form I-20.",
+    "Bank Statements": "Must show liquid funds sufficient to cover the total expenses for one year as listed on the I-20 (includes tuition, fees, and living cost)."
+  },
+  "critical_rules": [
+    "SEVIS ID on fee receipt and Form I-20 must be identical.",
+    "DS-160 confirmation page must have a clear, scannable barcode.",
+    "Both DSO and applicant signatures must be present on Form I-20 page 1."
+  ],
+  "ai_instructions": "Check for signature fields, compare SEVIS codes, and match bank statement balances against the I-20 cost estimates.",
+  "pass_examples": "Form I-20 signed, SEVIS receipt matching N001234567, DS-160 barcode clear, bank statement shows $45,000 USD.",
+  "fail_examples": "Form I-20 has no student signature, SEVIS ID does not match, Bank statement funds are illiquid (property values)."
+}

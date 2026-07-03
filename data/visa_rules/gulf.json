@@ -1,0 +1,28 @@
+{
+  "country": "Gulf",
+  "required_documents": [
+    "Passport",
+    "GAMCA Medical Fit Certificate",
+    "Police Clearance Certificate",
+    "Letter of Acceptance"
+  ],
+  "optional_documents": [
+    "Academic Certificates",
+    "Bank Statements",
+    "Sponsor Affidavit"
+  ],
+  "validation_rules": {
+    "Passport": "Must be valid for at least 6 months from entry date.",
+    "GAMCA Medical": "Must show 'FIT' status from an approved GCC medical center.",
+    "Police Clearance": "PCC must be recently issued (within 3 months) by national authority showing no active criminal record.",
+    "Letter of Acceptance": "Must be from an approved GCC educational institution or employer sponsorship permit."
+  },
+  "critical_rules": [
+    "Verify Medical Fit status on the GAMCA certificate.",
+    "Verify PCC is valid and issued within the last 90 days.",
+    "Passport expiration date must cover visa duration."
+  ],
+  "ai_instructions": "Confirm 'FIT' mark on GAMCA report and verify PCC issuance date.",
+  "pass_examples": "GAMCA shows FIT, PCC issued 10 days ago, Passport valid for 1 year.",
+  "fail_examples": "GAMCA report status is UNFIT, PCC is 6 months old."
+}

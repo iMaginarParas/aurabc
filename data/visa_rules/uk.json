@@ -1,0 +1,29 @@
+{
+  "country": "UK",
+  "required_documents": [
+    "Passport",
+    "Confirmation of Acceptance for Studies (CAS)",
+    "Bank Statements",
+    "IELTS / TOEFL / PTE"
+  ],
+  "optional_documents": [
+    "Academic Certificates",
+    "Transcripts",
+    "SOP",
+    "Tuberculosis (TB) Test Certificate"
+  ],
+  "validation_rules": {
+    "Passport": "Must contain at least 1 blank page on both sides for visa vignette.",
+    "CAS": "Must have a unique reference number issued by licensed sponsor. Must be used within 6 months of issuance.",
+    "Bank Statements": "Funds must cover outstanding 1st year tuition plus living expenses: £1,334 per month (up to 9 months, £12,006 total) in London, or £1,023 per month (£9,207 total) outside London. Funds must have been held consecutively for at least 28 days.",
+    "Tuberculosis (TB) Test": "Mandatory if applying from countries listed by UK Government (e.g. India)."
+  },
+  "critical_rules": [
+    "Verify the 28-day consecutive holding rule for financial statements.",
+    "CAS must be marked as active and valid in sponsor register.",
+    "Verify Tuberculosis certificate is from UK government-approved medical center."
+  ],
+  "ai_instructions": "Pay extreme attention to the 28-day rule. The bank statement must not show any balance drop below the minimum threshold at any point during those 28 days.",
+  "pass_examples": "Bank balance shows £15,000 held consecutively for 30 days without dropping, active CAS statement attached.",
+  "fail_examples": "Bank balance dropped below minimum for 1 day in the middle of the 28-day window, CAS is older than 6 months."
+}

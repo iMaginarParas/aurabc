@@ -1,0 +1,30 @@
+{
+  "country": "Schengen",
+  "required_documents": [
+    "Passport",
+    "Travel Insurance",
+    "Proof of Accommodation",
+    "Flight Reservation",
+    "Bank Statements"
+  ],
+  "optional_documents": [
+    "SOP",
+    "Academic Certificates",
+    "Sponsor Letter"
+  ],
+  "validation_rules": {
+    "Passport": "Must have been issued within the last 10 years and be valid for at least 3 months after departure date.",
+    "Travel Insurance": "Must cover medical expenses and repatriation of at least €30,000 EUR. Must cover all Schengen member states.",
+    "Accommodation": "Must show hotel reservation, rental contract, or official invitation from a host in the destination state.",
+    "Flight Reservation": "Must show roundtrip dummy booking or itinerary matching the requested travel dates.",
+    "Bank Statements": "Must show sufficient funds to cover daily expense limits of the target country (varies e.g. €70-120/day)."
+  },
+  "critical_rules": [
+    "Verify the travel medical insurance coverage is at least €30,000 EUR.",
+    "Passport must have been issued within 10 years (renewal stamps don't override this).",
+    "Accommodation and flight dates must match exactly."
+  ],
+  "ai_instructions": "Verify travel insurance policy limits, check dates consistency across travel documents, and count blank visa pages.",
+  "pass_examples": "Insurance covers €30,000, hotel booking and flight reservation match March 1-15 exactly, bank statement shows €3,000.",
+  "fail_examples": "Insurance covers only €15,000, hotel checkout date is before flight departure date, passport is 11 years old."
+}

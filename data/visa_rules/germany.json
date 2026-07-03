@@ -1,0 +1,28 @@
+{
+  "country": "Germany",
+  "required_documents": [
+    "Passport",
+    "Blocked Account Confirmation",
+    "Admission Letter",
+    "IELTS / TOEFL / PTE"
+  ],
+  "optional_documents": [
+    "SOP",
+    "Academic Certificates",
+    "German Language Test Certificate (e.g. Goethe)"
+  ],
+  "validation_rules": {
+    "Passport": "Must be valid for at least 3 months after planned return date.",
+    "Blocked Account": "Must prove blocked deposit of €11,904 EUR (€992 per month for 12 months) via official providers (Fintiba, Expatrio, Coracle).",
+    "Admission Letter": "Must be from a recognized German higher education institution (Zulassungsbescheid). Must state program commencement date.",
+    "Language Test": "Required overall score matching instruction language (usually minimum B2 German or IELTS 6.5 for English programs)."
+  },
+  "critical_rules": [
+    "Verify blocked account balance is at least €11,904 EUR.",
+    "Admission letter must be in German or English, official seal visible.",
+    "Language of instruction in the admission letter must match the language certificate uploaded."
+  ],
+  "ai_instructions": "Verify that the Blocked Account document is official (e.g., Expatrio/Fintiba) and check that the blocked amount is correct.",
+  "pass_examples": "Fintiba Blocked Account showing €11,904, Zulassungsbescheid from TU Munich, IELTS 7.0.",
+  "fail_examples": "Standard bank statement uploaded instead of a blocked account confirmation, Blocked account amount is only €10,000."
+}

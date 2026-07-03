@@ -1,0 +1,29 @@
+{
+  "country": "Australia",
+  "required_documents": [
+    "Passport",
+    "Confirmation of Enrolment (CoE)",
+    "Overseas Student Health Cover (OSHC)",
+    "Bank Statements"
+  ],
+  "optional_documents": [
+    "IELTS / TOEFL / PTE",
+    "SOP (GS statement)",
+    "Academic Certificates",
+    "Transcripts"
+  ],
+  "validation_rules": {
+    "Passport": "Must be valid for the duration of the student's stay in Australia.",
+    "CoE": "Must be issued by a CRICOS-registered provider and match details of the visa application.",
+    "OSHC": "Overseas Student Health Cover must cover the applicant from arrival date until the planned visa end date.",
+    "Bank Statements": "Must show liquid funds covering 1st year tuition plus AU$29,710 living costs. Must be held by a recognized bank and show clean source history."
+  },
+  "critical_rules": [
+    "Verify the OSHC dates cover the complete visa period.",
+    "CoE status must be active in PRISMS.",
+    "Financial statements must be from an acceptable financial institution (APRA approved)."
+  ],
+  "ai_instructions": "Check that OSHC health cover spans the entire targeted course duration and verify that the financial amounts meet the AU$29,710 living cost threshold.",
+  "pass_examples": "Active CoE attached, OSHC covers 2 years, bank statements show AU$50,000 liquid funds.",
+  "fail_examples": "OSHC expires 6 months before program completion, bank statements show property values instead of liquid savings."
+}
