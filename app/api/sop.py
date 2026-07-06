@@ -6,7 +6,8 @@ from typing import List, Optional
 
 from ..database import get_db
 from ..auth import get_current_user
-from ..models import Service, Order, SOPDocument, SOPVersion
+from ..models import Service, Order, SOPDocument, SOPVersion, EligibilityRequest
+from ..services.notifications.dispatcher import dispatch_whatsapp_event
 from ..schemas import (
     SOPGenerateRequest,
     SOPDocumentSave,
@@ -97,6 +98,20 @@ def generate_sop(
         db.add(db_version)
         db.commit()
         db.refresh(db_doc)
+
+        # Dispatch WhatsApp Notification
+        try:
+            profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == current_user.get("email")).first()
+            phone = profile.phone if profile else "+919876543210"
+            dispatch_whatsapp_event(
+                db=db,
+                user_id=user_id,
+                event_type="SOP_GENERATED",
+                payload={"student_name": payload.personal_info.full_name},
+                phone_number=phone
+            )
+        except Exception as dispatch_err:
+            logger.error(f"Failed to auto-dispatch WhatsApp notification: {str(dispatch_err)}")
 
         return db_doc
     except Exception as e:

@@ -16,6 +16,8 @@ from ..schemas import (
 )
 from ..services.openai_service import evaluate_student_profile
 from ..services.analytics_service import get_eligibility_analytics_report
+from ..services.notifications.dispatcher import dispatch_whatsapp_event
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/eligibility", tags=["eligibility"])
@@ -115,6 +117,18 @@ async def check_eligibility(
         db.refresh(db_result)
         db.refresh(db_request)
         
+        # Dispatch WhatsApp Notification
+        try:
+            dispatch_whatsapp_event(
+                db=db,
+                user_id="guest_user",
+                event_type="ELIGIBILITY_COMPLETED",
+                payload={"student_name": db_request.full_name},
+                phone_number=db_request.phone
+            )
+        except Exception as dispatch_err:
+            logger.error(f"Failed to auto-dispatch WhatsApp notification: {str(dispatch_err)}")
+            
         return EligibilityCheckResponse(request=db_request, result=db_result)
         
     except Exception as e:

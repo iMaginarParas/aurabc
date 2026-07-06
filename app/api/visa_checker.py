@@ -9,7 +9,8 @@ from typing import List, Optional
 
 from ..database import get_db
 from ..auth import get_current_user
-from ..models import Service, Order, VisaDocumentCheck, UploadedDocument, DocumentAnalysis
+from ..models import Service, Order, VisaDocumentCheck, UploadedDocument, DocumentAnalysis, EligibilityRequest
+from ..services.notifications.dispatcher import dispatch_whatsapp_event
 from ..schemas import (
     VisaCheckResponse,
     UploadedDocumentResponse,
@@ -191,6 +192,21 @@ def analyze_visa_documents(
 
         db.commit()
         db.refresh(check)
+
+        # Dispatch WhatsApp Notification
+        try:
+            profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == current_user.get("email")).first()
+            phone = profile.phone if profile else "+919876543210"
+            dispatch_whatsapp_event(
+                db=db,
+                user_id=user_id,
+                event_type="DOCUMENT_CHECK_COMPLETED",
+                payload={"student_name": profile.full_name if profile else "Student Partner"},
+                phone_number=phone
+            )
+        except Exception as dispatch_err:
+            logger.error(f"Failed to auto-dispatch WhatsApp notification: {str(dispatch_err)}")
+
         return check
     except Exception as e:
         logger.error(f"Visa check analysis failed: {str(e)}")

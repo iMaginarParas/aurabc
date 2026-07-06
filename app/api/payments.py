@@ -6,7 +6,8 @@ from typing import List, Optional
 import json
 
 from ..database import get_db
-from ..models import Service, Order, Payment
+from ..models import Service, Order, Payment, EligibilityRequest
+from ..services.notifications.dispatcher import dispatch_whatsapp_event
 from ..schemas import (
     ServiceResponse,
     OrderCreate,
@@ -85,6 +86,25 @@ def verify_payment(
             billing_name=payload.billing_name,
             email=payload.email
         )
+        
+        # Dispatch WhatsApp Notification
+        try:
+            profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == payload.email).first()
+            phone = profile.phone if profile else "+919876543210"
+            dispatch_whatsapp_event(
+                db=db,
+                user_id=db_payment.order.user_id or "guest_user",
+                event_type="PAYMENT_SUCCESS",
+                payload={
+                    "student_name": payload.billing_name,
+                    "amount": f"Rs {db_payment.amount}",
+                    "service_name": db_payment.order.service.title
+                },
+                phone_number=phone
+            )
+        except Exception as dispatch_err:
+            logger.error(f"Failed to auto-dispatch WhatsApp notification: {str(dispatch_err)}")
+
         return db_payment
     except ValueError as val_err:
         logger.error(f"Payment validation failed: {str(val_err)}")
@@ -144,6 +164,25 @@ async def handle_payment_webhook(request: Request, db: Session = Depends(get_db)
                     db.add(db_payment)
                 db.commit()
                 
+                # Dispatch Webhook Payment Success Notification
+                try:
+                    email = payment_payload.get("email")
+                    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == email).first() if email else None
+                    phone = profile.phone if profile else payment_payload.get("contact", "+919876543210")
+                    dispatch_whatsapp_event(
+                        db=db,
+                        user_id=db_order.user_id or "guest_user",
+                        event_type="PAYMENT_SUCCESS",
+                        payload={
+                            "student_name": payment_payload.get("billing_address", {}).get("name", "Student Partner"),
+                            "amount": f"Rs {db_order.amount}",
+                            "service_name": db_order.service.title
+                        },
+                        phone_number=phone
+                    )
+                except Exception as dispatch_err:
+                    logger.error(f"Failed to webhook-dispatch WhatsApp notification: {str(dispatch_err)}")
+                
         elif event_type == "payment.failed":
             payment_payload = event_data["payload"]["payment"]["entity"]
             order_id = payment_payload.get("order_id")
@@ -153,6 +192,25 @@ async def handle_payment_webhook(request: Request, db: Session = Depends(get_db)
                     logger.warning(f"Webhook transition Order {db_order.id} status to 'failed'")
                     db_order.payment_status = "failed"
                     db.commit()
+                    
+                    # Dispatch Webhook Payment Failed Notification
+                    try:
+                        email = payment_payload.get("email")
+                        profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == email).first() if email else None
+                        phone = profile.phone if profile else payment_payload.get("contact", "+919876543210")
+                        dispatch_whatsapp_event(
+                            db=db,
+                            user_id=db_order.user_id or "guest_user",
+                            event_type="PAYMENT_FAILED",
+                            payload={
+                                "student_name": "Student Partner",
+                                "amount": f"Rs {db_order.amount}",
+                                "service_name": db_order.service.title
+                            },
+                            phone_number=phone
+                        )
+                    except Exception as dispatch_err:
+                        logger.error(f"Failed to webhook-dispatch fail WhatsApp notification: {str(dispatch_err)}")
 
         return {"status": "event processed"}
     except Exception as e:
