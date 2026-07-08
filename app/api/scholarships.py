@@ -56,7 +56,7 @@ def match_scholarships(
 
         # Log Dashboard Activity
         db.add(DashboardActivity(
-            user_id="guest_user",
+            user_id=user_id,
             activity_type="Scholarships Match",
             description=f"Generated {len(recs)} matched scholarships recommendations."
         ))

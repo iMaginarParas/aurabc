@@ -995,3 +995,147 @@ class NotificationPreferenceUpdate(BaseModel):
 
 
 
+
+
+# ============================================================
+# MASTER PROFILE & SETTINGS SCHEMAS
+# ============================================================
+
+class ProfilePersonalUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    nationality: Optional[str] = None
+    country_residence: Optional[str] = None
+    city: Optional[str] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    passport_number: Optional[str] = None
+    passport_expiry: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_relation: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+class AcademicProfileUpdate(BaseModel):
+    highest_qualification: Optional[str] = None
+    gpa_10th: Optional[float] = None
+    gpa_12th: Optional[float] = None
+    cgpa_bachelors: Optional[float] = None
+    cgpa_masters: Optional[float] = None
+    grad_year: Optional[int] = None
+    university: Optional[str] = None
+    college: Optional[str] = None
+    backlogs: Optional[int] = None
+    research_papers: Optional[List[Dict[str, Any]]] = None
+    projects: Optional[List[Dict[str, Any]]] = None
+    work_experience: Optional[List[Dict[str, Any]]] = None
+    internships: Optional[List[Dict[str, Any]]] = None
+    certifications: Optional[List[Dict[str, Any]]] = None
+    
+    # Exam scores
+    ielts_score: Optional[float] = None
+    ielts_expiry: Optional[str] = None
+    toefl_score: Optional[float] = None
+    toefl_expiry: Optional[str] = None
+    pte_score: Optional[float] = None
+    pte_expiry: Optional[str] = None
+    duolingo_score: Optional[float] = None
+    duolingo_expiry: Optional[str] = None
+    gre_score: Optional[float] = None
+    gre_expiry: Optional[str] = None
+    gmat_score: Optional[float] = None
+    gmat_expiry: Optional[str] = None
+    sat_score: Optional[float] = None
+    sat_expiry: Optional[str] = None
+    neet_score: Optional[float] = None
+    neet_expiry: Optional[str] = None
+
+class StudyPreferenceUpdate(BaseModel):
+    preferred_countries: Optional[List[str]] = None
+    preferred_universities: Optional[List[str]] = None
+    preferred_courses: Optional[List[str]] = None
+    degree_level: Optional[str] = None
+    budget: Optional[str] = None
+    target_intake: Optional[str] = None
+    scholarship_required: Optional[bool] = None
+    preferred_city: Optional[str] = None
+    preferred_language: Optional[str] = None
+    career_goals: Optional[str] = None
+
+class FinancialProfileUpdate(BaseModel):
+    annual_family_income: Optional[str] = None
+    savings: Optional[float] = None
+    education_loan: Optional[float] = None
+    sponsor: Optional[str] = None
+    currency: Optional[str] = None
+
+class NotificationPreferenceSettingsUpdate(BaseModel):
+    email: Optional[bool] = None
+    whatsapp: Optional[bool] = None
+    sms: Optional[bool] = None
+    in_app: Optional[bool] = None
+    ai_updates: Optional[bool] = None
+    consultation: Optional[bool] = None
+    payments: Optional[bool] = None
+    scholarships: Optional[bool] = None
+    visa: Optional[bool] = None
+    application: Optional[bool] = None
+
+class AppearanceSettingsUpdate(BaseModel):
+    theme: str # System, Light, Dark
+    accent_color: Optional[str] = None
+
+class LanguagePreferenceSettingsUpdate(BaseModel):
+    preferred_language: str
+    supported_languages: Optional[List[str]] = None
+
+class MasterProfileUpdate(BaseModel):
+    personal: Optional[ProfilePersonalUpdate] = None
+    academic: Optional[AcademicProfileUpdate] = None
+    preferences: Optional[StudyPreferenceUpdate] = None
+    financial: Optional[FinancialProfileUpdate] = None
+
+class ConnectedAccountSchema(BaseModel):
+    provider: str
+    provider_user_id: str
+    email: Optional[str] = None
+    connected_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class StudentDocumentResponse(BaseModel):
+    id: str
+    user_id: str
+    category: str
+    filename: str
+    content_type: str
+    file_size: int
+    file_path: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ProfileResponse(BaseModel):
+    id: str
+    user_id: str
+    personal: ProfilePersonalUpdate
+    academic: AcademicProfileUpdate
+    preferences: StudyPreferenceUpdate
+    financial: FinancialProfileUpdate
+    verification_status: str
+    completion_scores: Dict[str, int]
+    photo_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SettingsResponse(BaseModel):
+    notifications: NotificationPreferenceSettingsUpdate
+    language: LanguagePreferenceSettingsUpdate
+    appearance: AppearanceSettingsUpdate
+    connected_accounts: List[ConnectedAccountSchema]
+    security: Dict[str, Any]

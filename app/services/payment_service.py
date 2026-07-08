@@ -88,14 +88,19 @@ def verify_payment_signature_and_log(
         raise ValueError("Matching Order not found in database record logs.")
 
     is_verified = False
+    import os
+    app_env = os.getenv("APP_ENV", "production").lower()
     
     # Standard check for simulation mode
     if order_id.startswith("order_sim_"):
-        logger.info("Bypassing cryptographic check for simulated checkout transaction.")
-        is_verified = True
+        if app_env == "development":
+            logger.info("Bypassing cryptographic check for simulated checkout transaction in development.")
+            is_verified = True
+        else:
+            logger.critical(f"Rejecting simulated transaction ID '{order_id}' in production mode.")
+            raise ValueError("Simulated transactions are disabled in production.")
     elif razorpay_client:
         try:
-            import os
             rzp_secret = os.getenv("RAZORPAY_KEY_SECRET") or ""
             params_dict = {
                 "razorpay_order_id": order_id,
@@ -111,8 +116,12 @@ def verify_payment_signature_and_log(
             raise ValueError("Cryptographic payment signature check failed. Transaction invalid.")
     else:
         # Fallback approve in dev environment if key is missing
-        logger.info("No Razorpay keys set. Approving transaction in simulation sandbox.")
-        is_verified = True
+        if app_env == "development":
+            logger.info("No Razorpay keys set. Approving transaction in simulation sandbox.")
+            is_verified = True
+        else:
+            logger.critical("Razorpay configuration keys missing in production mode. Verification failed.")
+            raise ValueError("Razorpay configurations are missing on server. Cannot verify signature.")
 
     if not is_verified:
         raise ValueError("Invalid transaction signature.")

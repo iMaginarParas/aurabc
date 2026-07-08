@@ -33,11 +33,11 @@ def trigger_notification_event(
     Triggers a platform notification event, variable interpolator compile, and queues message.
     Payload keys:
       - "event_type": ELIGIBILITY_COMPLETED, PAYMENT_SUCCESS, SOP_GENERATED, etc.
-      - "phone_number": e.g., "+919876543210"
+      - "phone_number": e.g., "+919891263337"
       - "variables": Dict of keys/values (e.g. {"student_name": "John", "amount": "₹999"})
     """
     event_type = payload.get("event_type")
-    phone = payload.get("phone_number", "+919876543210")
+    phone = payload.get("phone_number", "+919891263337")
     variables = payload.get("variables", {})
 
     if not event_type:

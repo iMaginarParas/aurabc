@@ -50,19 +50,45 @@ def get_dashboard_overview(
 
     # 1. Profile completeness calculation
     profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
-    completeness = 40  # Default fallback base score
-    if profile:
-        score = 0
-        fields = [
-            profile.full_name, profile.email, profile.phone,
-            profile.country_residence, profile.nationality, profile.qualification,
-            profile.preferred_country, profile.preferred_course,
-            profile.preferred_intake, profile.budget_range
-        ]
-        for field in fields:
-            if field:
-                score += 10
-        completeness = max(score, 40)
+    
+    # Auto-create profile from Google User Metadata if it doesn't exist
+    if not profile:
+        user_metadata = current_user.get("user_metadata", {})
+        g_name = user_metadata.get("full_name") or user_metadata.get("name") or "New Student"
+        g_email = user_email or current_user.get("email") or "student@auraroutes.com"
+        
+        profile = EligibilityRequest(
+            full_name=g_name,
+            email=g_email,
+            phone="",
+            country_residence="",
+            nationality="",
+            qualification="",
+            gpa_10th=0.0,
+            gpa_12th=0.0,
+            grad_year=2026,
+            english_exam="None",
+            preferred_country="",
+            preferred_course="",
+            preferred_intake="",
+            budget_range=""
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    completeness = 0
+    fields = [
+        profile.full_name, profile.email, profile.phone,
+        profile.country_residence, profile.nationality, profile.qualification,
+        profile.preferred_country, profile.preferred_course,
+        profile.preferred_intake, profile.budget_range
+    ]
+    score = 0
+    for field in fields:
+        if field and str(field).strip():
+            score += 10
+    completeness = score
 
     # 2. Purchased premium services slugs
     paid_services = db.query(Service.slug).join(Order).filter(
@@ -107,7 +133,7 @@ def get_dashboard_overview(
     }
 
 
-@router.get("/api/profile", response_model=StudentProfileResponse)
+@router.get("/api/dashboard/profile", response_model=StudentProfileResponse)
 def get_student_profile(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -121,18 +147,29 @@ def get_student_profile(
 
     profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
     if not profile:
-        # Return fallback mock profile
-        return {
-            "full_name": "Priyan Bose",
-            "email": "priyan.bose@gmail.com",
-            "phone": "+91 9876543210",
-            "country_residence": "India",
-            "nationality": "Indian",
-            "qualification": "Bachelor of Engineering",
-            "preferred_country": "Canada",
-            "preferred_course": "M.S. Computer Science",
-            "preferred_intake": "Fall 2026"
-        }
+        user_metadata = current_user.get("user_metadata", {})
+        g_name = user_metadata.get("full_name") or user_metadata.get("name") or "New Student"
+        g_email = user_email or current_user.get("email") or "student@auraroutes.com"
+        
+        profile = EligibilityRequest(
+            full_name=g_name,
+            email=g_email,
+            phone="",
+            country_residence="",
+            nationality="",
+            qualification="",
+            gpa_10th=0.0,
+            gpa_12th=0.0,
+            grad_year=2026,
+            english_exam="None",
+            preferred_country="",
+            preferred_course="",
+            preferred_intake="",
+            budget_range=""
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
     
     return {
         "full_name": profile.full_name,
@@ -147,7 +184,7 @@ def get_student_profile(
     }
 
 
-@router.put("/api/profile", response_model=StudentProfileResponse)
+@router.put("/api/dashboard/profile", response_model=StudentProfileResponse)
 def update_student_profile(
     payload: StudentProfileUpdate,
     db: Session = Depends(get_db),

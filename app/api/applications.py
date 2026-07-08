@@ -418,6 +418,6 @@ def get_application_calendar_events(
     if current_user.get("sub") == "guest_user":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     user_id = current_user.get("sub")
-    return db.query(ApplicationCalendarItem).filter(
-        ApplicationCalendarItem.user_id == user_id
+    return db.query(ApplicationCalendarItem).join(Application).filter(
+        Application.user_id == user_id
     ).order_by(ApplicationCalendarItem.event_date).all()

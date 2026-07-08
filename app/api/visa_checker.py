@@ -26,18 +26,19 @@ router = APIRouter(tags=["visa_checker"])
 UPLOAD_DIR = os.path.join("backend", "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def verify_visa_checker_purchase(db: Session):
+def verify_visa_checker_purchase(db: Session, user_id: str):
     """
-    Enforces purchase locks. Verifies if there is a paid order for the 'ai-visa-doc-checker' service.
+    Enforces purchase locks. Verifies if there is a paid order for the 'ai-visa-doc-checker' service for the specific user.
     """
-    logger.info("Verifying purchase authorization for AI Visa Document Checker...")
+    logger.info(f"Verifying purchase authorization for AI Visa Document Checker for user {user_id}...")
     paid_order = db.query(Order).join(Service).filter(
+        Order.user_id == user_id,
         Order.payment_status == "paid",
         Service.slug == "ai-visa-doc-checker"
     ).first()
     
     if not paid_order:
-        logger.warning("No paid order found for AI Visa Document Checker. Access denied.")
+        logger.warning(f"No paid order found for user {user_id} for AI Visa Document Checker. Access denied.")
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Access Locked: Please purchase the AI Visa Document Checker package to unlock this feature."
@@ -86,6 +87,13 @@ async def upload_visa_document(
         content = await file.read()
         file_size = len(content)
 
+        # Security: Enforce 5MB limit
+        if file_size > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File too large. Maximum size limit is 5MB."
+            )
+
         # Upload to Supabase Storage
         from ..services.storage_service import upload_file_to_supabase
         storage_url = upload_file_to_supabase("documents", unique_name, content, file.content_type or "application/octet-stream")
@@ -104,6 +112,8 @@ async def upload_visa_document(
         db.commit()
         db.refresh(db_doc)
         return db_doc
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
         logger.error(f"File upload failed: {str(e)}")
         raise HTTPException(
@@ -115,7 +125,6 @@ async def upload_visa_document(
 @router.post("/api/visa-check/analyze/{check_id}", response_model=VisaCheckResponse)
 def analyze_visa_documents(
     check_id: str,
-    bypass_check: bool = Query(False),  # Developer bypass check helper
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -126,8 +135,7 @@ def analyze_visa_documents(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     user_id = current_user.get("sub")
 
-    if not bypass_check:
-        verify_visa_checker_purchase(db)
+    verify_visa_checker_purchase(db, user_id)
 
     check = db.query(VisaDocumentCheck).filter(
         VisaDocumentCheck.id == check_id,
@@ -193,10 +201,21 @@ def analyze_visa_documents(
         db.commit()
         db.refresh(check)
 
+        # Trigger Journey Automation
+        try:
+            from ..services.journey_automation import JourneyAutomationService
+            JourneyAutomationService.on_visa_report_ready(
+                db=db,
+                user_id=user_id,
+                readiness_score=check.readiness_score
+            )
+        except Exception as journey_err:
+            logger.error(f"Failed to trigger visa check automation: {str(journey_err)}")
+
         # Dispatch WhatsApp Notification
         try:
             profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == current_user.get("email")).first()
-            phone = profile.phone if profile else "+919876543210"
+            phone = profile.phone if profile else "+919891263337"
             dispatch_whatsapp_event(
                 db=db,
                 user_id=user_id,
@@ -302,8 +321,18 @@ def delete_visa_check(
             detail="Visa check record not found."
         )
     
-    # Optional: Delete actual files from disk
+    # Delete actual files from Supabase Storage & local disk
+    from ..services.storage_service import delete_file_from_supabase
     for doc in check.uploaded_documents:
+        # Delete from Supabase Storage
+        if "/simulated-storage/" not in doc.file_path:
+            try:
+                fname = doc.file_path.split("/")[-1]
+                delete_file_from_supabase("documents", fname)
+            except Exception as e:
+                logger.warning(f"Failed to delete document from Supabase storage: {str(e)}")
+
+        # Delete from local fallback if exists
         full_path = os.path.join("backend", doc.file_path.lstrip("/"))
         if os.path.exists(full_path):
             try:

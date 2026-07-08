@@ -15,47 +15,60 @@ security = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     """
-    Decodes the Supabase JWT token from the Authorization header.
-    Validates signature using SUPABASE_JWT_SECRET if provided.
+    Decodes and strictly verifies the Supabase JWT token from the Authorization header.
+    Rejects requests without verified signatures in production environments.
     """
-    if not credentials:
-        # Fallback to guest_user in development or unauthenticated endpoints
-        return {"sub": "guest_user", "email": "guest@auraroutes.com", "role": "authenticated"}
-
-    token = credentials.credentials
+    app_env = os.getenv("APP_ENV", "production").lower()
     jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
 
-    if not jwt_secret:
-        logger.warning("SUPABASE_JWT_SECRET is not configured in the environment. Skipping signature verification.")
-        if jwt:
-            try:
-                # Decode without verification
-                payload = jwt.decode(token, options={"verify_signature": False})
-                return payload
-            except Exception as e:
-                logger.error(f"Failed to decode JWT: {str(e)}")
-        # Basic fallback payload from token split
-        return {"sub": "guest_user", "email": "guest@auraroutes.com"}
-
-    if not jwt:
-        logger.error("jwt (PyJWT) package is not installed. Cannot verify JWT signature.")
+    # 1. Enforce token presence in production
+    if not credentials:
+        if app_env == "development":
+            logger.warning("No credentials found. Falling back to guest_user in development environment.")
+            return {"sub": "guest_user", "email": "guest@auraroutes.com", "role": "authenticated"}
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="JWT library not available on server."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials are required to access this resource."
         )
 
+    token = credentials.credentials
+
+    # 2. Check for secret configuration
+    if not jwt_secret:
+        if app_env == "development":
+            logger.warning("SUPABASE_JWT_SECRET is missing. Bypassing signature verification in development.")
+            if jwt:
+                try:
+                    return jwt.decode(token, options={"verify_signature": False})
+                except Exception as e:
+                    logger.error(f"Failed to decode token content: {str(e)}")
+            return {"sub": "guest_user", "email": "guest@auraroutes.com"}
+        
+        logger.critical("SUPABASE_JWT_SECRET environment variable is missing in production mode.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server security configuration error. Signature validation cannot be performed."
+        )
+
+    # 3. Require PyJWT module
+    if not jwt:
+        logger.error("PyJWT library is missing on server runtime.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Required cryptographic libraries are missing on the host server."
+        )
+
+    # 4. Decode and cryptographically verify JWT token
     try:
-        # Verify and decode using the secret key
-        # Supabase default signature algorithm is HS256
         payload = jwt.decode(token, jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="JWT token has expired."
+            detail="User session token has expired. Please sign in again."
         )
     except jwt.InvalidTokenError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid JWT token: {str(err)}"
+            detail=f"Cryptographic authentication verification failed: {str(err)}"
         )

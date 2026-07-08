@@ -171,27 +171,29 @@ UPLOADED DOCUMENTS FOR EVALUATION:
 {json.dumps(ocr_payloads, indent=2)}
 """
 
-    if openai_client:
-        try:
-            logger.info(f"Querying OpenAI ChatGPT for Visa Document Checker report: {country}")
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=3000,
-                response_format={"type": "json_object"}
-            )
-            report_str = response.choices[0].message.content
-            if report_str:
-                return json.loads(report_str.strip())
-        except Exception as e:
-            logger.error(f"OpenAI Visa Check failed: {str(e)}. Resolving local fallback report.")
+    if not openai_client:
+        logger.critical("OpenAI client unconfigured in Visa Service.")
+        raise RuntimeError("AI Visa Checker service is unconfigured on the server.")
 
-    # Return local mock/fallback report if OpenAI bails
-    return get_fallback_visa_report(country, visa_type, ocr_payloads)
+    try:
+        logger.info(f"Querying OpenAI ChatGPT for Visa Document Checker report: {country}")
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
+        report_str = response.choices[0].message.content
+        if report_str:
+            return json.loads(report_str.strip())
+        raise RuntimeError("Empty response from OpenAI Visa Checker.")
+    except Exception as e:
+        logger.error(f"OpenAI Visa Check failed: {str(e)}")
+        raise RuntimeError(f"AI Visa Document analysis failed: {str(e)}")
 
 
 def get_fallback_visa_report(country: str, visa_type: str, ocr_payloads: List[Dict[str, Any]]) -> Dict[str, Any]:

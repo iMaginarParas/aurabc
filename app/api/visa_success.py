@@ -1,10 +1,12 @@
 import logging
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
 
 from ..database import get_db
+from ..auth import get_current_user
 from ..models import (
     VisaProfile,
     VisaReadinessReport,
@@ -36,19 +38,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["visa_success"])
 
 
-def get_or_create_visa_profile(db: Session, country: str = "Canada") -> VisaProfile:
+def get_or_create_visa_profile(db: Session, user_id: str, country: str = "Canada") -> VisaProfile:
     """
-    Helper utility to locate or spin up the default visa preparation workspace profile.
+    Helper utility to locate or spin up the user's specific visa preparation workspace profile.
     """
     prof = db.query(VisaProfile).filter(
-        VisaProfile.user_id == "guest_user",
+        VisaProfile.user_id == user_id,
         VisaProfile.country == country
     ).first()
 
     if not prof:
-        logger.info(f"Creating a new Visa Profile for country: {country}")
+        logger.info(f"Creating a new Visa Profile for country: {country} and user: {user_id}")
         prof = VisaProfile(
-            user_id="guest_user",
+            user_id=user_id,
             country=country,
             visa_type="Student Visa",
             current_stage="Documents"
@@ -97,13 +99,18 @@ def get_or_create_visa_profile(db: Session, country: str = "Canada") -> VisaProf
 @router.get("/api/visa/dashboard", response_model=VisaDashboardResponse)
 def get_visa_dashboard(
     country: str = "Canada",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Consolidates the active visa profile checklist, timelines, readiness metrics, and recommendation feeds.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     try:
-        prof = get_or_create_visa_profile(db, country)
+        prof = get_or_create_visa_profile(db, user_id, country)
         
         readiness = db.query(VisaReadinessReport).filter(
             VisaReadinessReport.profile_id == prof.id
@@ -135,13 +142,18 @@ def get_visa_dashboard(
 @router.post("/api/visa/readiness", response_model=VisaReadinessResponse)
 def evaluate_visa_readiness(
     payload: VisaReadinessRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Evaluates questionnaire responses via OpenAI and logs readiness risk scores.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     try:
-        prof = get_or_create_visa_profile(db, payload.country)
+        prof = get_or_create_visa_profile(db, user_id, payload.country)
         
         # Run AI auditor
         ai_res = evaluate_visa_readiness_ai(
@@ -162,9 +174,9 @@ def evaluate_visa_readiness(
         )
         db.add(db_report)
         
-        # Log Dashboard Activity
+        # Log Dashboard Activity for the authenticated user
         db.add(DashboardActivity(
-            user_id="guest_user",
+            user_id=user_id,
             activity_type="Visa Readiness",
             description=f"Generated AI readiness report for {payload.country} (Score: {db_report.overall_score}%)."
         ))
@@ -183,13 +195,18 @@ def evaluate_visa_readiness(
 @router.post("/api/visa/financial", response_model=VisaFinancialResponse)
 def calculate_financial_readiness(
     payload: VisaFinancialRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Computes funding targets, calculated gaps, and records recommendations.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     try:
-        prof = get_or_create_visa_profile(db, payload.country)
+        prof = get_or_create_visa_profile(db, user_id, payload.country)
 
         # Calculate funds bounds
         required = payload.tuition_fee + payload.living_expenses
@@ -241,13 +258,18 @@ def calculate_financial_readiness(
 @router.post("/api/visa/interview", response_model=VisaInterviewResponse)
 def submit_visa_interview_answer(
     payload: VisaInterviewRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Submits visa officer mock questions answers to ChatGPT for rating and critique feedback logs.
     """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
     try:
-        prof = get_or_create_visa_profile(db, payload.country)
+        prof = get_or_create_visa_profile(db, user_id, payload.country)
 
         # Analyze answer using OpenAI ChatGPT
         critique = analyze_visa_interview_answer_ai(
@@ -295,16 +317,25 @@ def update_checklist_status(
     checklist_id: str,
     status: str,
     notes: str = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    Modifies status flags on specific checklist slots.
+    Modifies status flags on specific checklist slots, checking authorization ownership.
     """
-    item = db.query(VisaChecklist).filter(VisaChecklist.id == checklist_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    # Secure BOLA verification
+    item = db.query(VisaChecklist).join(VisaProfile).filter(
+        VisaChecklist.id == checklist_id,
+        VisaProfile.user_id == user_id
+    ).first()
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Checklist item not found."
+            detail="Checklist item not found or access denied."
         )
 
     item.status = status
@@ -320,16 +351,25 @@ def update_checklist_status(
 def update_timeline_item_status(
     timeline_id: str,
     status: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    Modifies status on timeline checkpoints.
+    Modifies status on timeline checkpoints, checking authorization ownership.
     """
-    item = db.query(VisaTimelineItem).filter(VisaTimelineItem.id == timeline_id).first()
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    # Secure BOLA verification
+    item = db.query(VisaTimelineItem).join(VisaProfile).filter(
+        VisaTimelineItem.id == timeline_id,
+        VisaProfile.user_id == user_id
+    ).first()
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Timeline item not found."
+            detail="Timeline item not found or access denied."
         )
 
     item.status = status
@@ -341,12 +381,17 @@ def update_timeline_item_status(
 @router.get("/api/visa/history", response_model=List[VisaReadinessResponse])
 def get_visa_readiness_history(
     country: str = "Canada",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Lists previous visa readiness assessment metrics.
     """
-    prof = get_or_create_visa_profile(db, country)
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+
+    prof = get_or_create_visa_profile(db, user_id, country)
     return db.query(VisaReadinessReport).filter(
         VisaReadinessReport.profile_id == prof.id
     ).order_by(desc(VisaReadinessReport.created_at)).all()

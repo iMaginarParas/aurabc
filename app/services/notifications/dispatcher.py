@@ -23,7 +23,7 @@ def dispatch_whatsapp_event(
     user_id: str,
     event_type: str,
     payload: dict,
-    phone_number: str = "+919876543210"
+    phone_number: str = "+919891263337"
 ) -> WhatsAppNotification:
     """
     Checks user opt-in preferences, fetches active template, interpolates

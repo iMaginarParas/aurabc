@@ -140,6 +140,21 @@ def save_university_to_favorites(
     db.add(db_fav)
     db.commit()
     db.refresh(db_fav)
+
+    # Trigger Journey Automation
+    try:
+        from ..services.journey_automation import JourneyAutomationService
+        JourneyAutomationService.on_university_saved(
+            db=db,
+            user_id=user_id,
+            uni_name=payload.name,
+            country=payload.country,
+            course=payload.course,
+            tuition=payload.tuition_fee
+        )
+    except Exception as journey_err:
+        logger.error(f"Failed to run journey automation trigger: {str(journey_err)}")
+
     return db_fav
 
 

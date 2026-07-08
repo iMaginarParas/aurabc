@@ -107,28 +107,30 @@ ADDITIONAL BACKGROUND INFORMATION:
 - Extra Notes: {add_info.get("notes", "N/A")}
 """
 
-    if openai_client:
-        try:
-            logger.info("Requesting SOP draft from OpenAI...")
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": get_sop_system_prompt()},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=2500
-            )
-            content = response.choices[0].message.content
-            if content:
-                # Strip out backticks if OpenAI sends back ```html codeblocks
-                content = content.replace("```html", "").replace("```", "").strip()
-                return content
-        except Exception as e:
-            logger.error(f"OpenAI SOP generation failed: {str(e)}. Falling back to local heuristic writer.")
+    if not openai_client:
+        logger.critical("OpenAI client not configured in SOP Service.")
+        raise RuntimeError("AI SOP Generator service is unconfigured on the server.")
 
-    # Return local mock/fallback SOP generator if OpenAI call fails
-    return get_fallback_sop_html(profile)
+    try:
+        logger.info("Requesting SOP draft from OpenAI...")
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": get_sop_system_prompt()},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2500
+        )
+        content = response.choices[0].message.content
+        if content:
+            # Strip out backticks if OpenAI sends back ```html codeblocks
+            content = content.replace("```html", "").replace("```", "").strip()
+            return content
+        raise RuntimeError("Empty response received from OpenAI SOP service.")
+    except Exception as e:
+        logger.error(f"OpenAI SOP generation failed: {str(e)}.")
+        raise RuntimeError(f"AI SOP draft generation failed: {str(e)}")
 
 
 def rewrite_sop_segment(content: str, instruction: str, selected_text: Optional[str] = None) -> str:
@@ -162,30 +164,32 @@ Text to modify:
 {target_block}
 """
 
-    if openai_client:
-        try:
-            logger.info(f"Requesting SOP rewrite block for instruction: {instruction}")
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.6,
-                max_tokens=2000
-            )
-            revised = response.choices[0].message.content
-            if revised:
-                revised = revised.replace("```html", "").replace("```", "").strip()
-                if selected_text:
-                    # Replace the old selected text with the new one inside the full document content
-                    return content.replace(selected_text, revised)
-                return revised
-        except Exception as e:
-            logger.error(f"OpenAI SOP rewrite block failed: {str(e)}.")
+    if not openai_client:
+        logger.critical("OpenAI client not configured in SOP Service for rewrite.")
+        raise RuntimeError("AI SOP Rewrite service is unconfigured on the server.")
 
-    # In case of API failure, return original block unchanged
-    return content
+    try:
+        logger.info(f"Requesting SOP rewrite block for instruction: {instruction}")
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.6,
+            max_tokens=2000
+        )
+        revised = response.choices[0].message.content
+        if revised:
+            revised = revised.replace("```html", "").replace("```", "").strip()
+            if selected_text:
+                # Replace the old selected text with the new one inside the full document content
+                return content.replace(selected_text, revised)
+            return revised
+        raise RuntimeError("Empty response received from OpenAI SOP rewrite service.")
+    except Exception as e:
+        logger.error(f"OpenAI SOP rewrite block failed: {str(e)}.")
+        raise RuntimeError(f"AI SOP segment rewrite command failed: {str(e)}")
 
 
 def get_fallback_sop_html(profile: Dict[str, Any]) -> str:
