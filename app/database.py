@@ -15,10 +15,10 @@ if db_url.startswith("sqlite"):
 else:
     engine = create_engine(
         db_url,
-        pool_size=20,
-        max_overflow=10,
-        pool_recycle=1800,
-        pool_pre_ping=True
+        pool_size=10,       # Supabase Nano hard limit: 15 connections total
+        max_overflow=4,     # Burst headroom — total ceiling = 14 (safe under 15)
+        pool_recycle=1800,  # Recycle connections every 30 min
+        pool_pre_ping=True  # Verify connection alive before using from pool
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
