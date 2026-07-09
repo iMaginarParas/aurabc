@@ -3,23 +3,40 @@ import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any
-
-# Optional: try importing pyjwt
-try:
-    import jwt
-except ImportError:
-    jwt = None
+import jwt
+from jwt import PyJWKClient
+from .config import settings
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
+# Global JWK client cached to avoid multiple network calls
+jwk_client = None
+
+def get_jwk_client() -> PyJWKClient:
+    global jwk_client
+    if jwk_client is not None:
+        return jwk_client
+        
+    supabase_url = settings.supabase_url or os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    if not supabase_url:
+        return None
+        
+    # Strip any trailing slash
+    supabase_url = supabase_url.rstrip("/")
+    jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
+    
+    # Initialize PyJWKClient with caching options
+    jwk_client = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+    return jwk_client
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     """
-    Decodes and strictly verifies the Supabase JWT token from the Authorization header.
+    Decodes and strictly verifies the Supabase JWT token from the Authorization header
+    using Supabase's JWKS endpoint (ES256 asymmetric signature verification).
     Rejects requests without verified signatures in production environments.
     """
     app_env = os.getenv("APP_ENV", "production").lower()
-    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
 
     # 1. Enforce token presence in production
     if not credentials:
@@ -32,43 +49,62 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
 
     token = credentials.credentials
+    client = get_jwk_client()
 
-    # 2. Check for secret configuration
-    if not jwt_secret:
+    # 2. Check for JWK client availability (i.e. Supabase URL configured)
+    if not client:
         if app_env == "development":
-            logger.warning("SUPABASE_JWT_SECRET is missing. Bypassing signature verification in development.")
-            if jwt:
-                try:
-                    return jwt.decode(token, options={"verify_signature": False})
-                except Exception as e:
-                    logger.error(f"Failed to decode token content: {str(e)}")
-            return {"sub": "guest_user", "email": "guest@auraroutes.com"}
+            logger.warning("SUPABASE_URL is missing. Bypassing signature verification in development.")
+            try:
+                # Decode without verification
+                return jwt.decode(token, options={"verify_signature": False})
+            except Exception as e:
+                logger.error(f"Failed to decode token content: {str(e)}")
+            return {"sub": "guest_user", "email": "guest@auraroutes.com", "role": "authenticated"}
         
-        logger.critical("SUPABASE_JWT_SECRET environment variable is missing in production mode.")
+        logger.critical("SUPABASE_URL environment variable is missing in production mode.")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server security configuration error. Signature validation cannot be performed."
+            detail="Server security configuration error. Supabase URL is not configured."
         )
 
-    # 3. Require PyJWT module
-    if not jwt:
-        logger.error("PyJWT library is missing on server runtime.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Required cryptographic libraries are missing on the host server."
-        )
-
-    # 4. Decode and cryptographically verify JWT token
+    # 3. Fetch public signing key from JWKS and cryptographically verify JWT token
     try:
-        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
+        signing_key = client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["ES256"],
+            options={"verify_aud": False}
+        )
         return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User session token has expired. Please sign in again."
-        )
-    except jwt.InvalidTokenError as err:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Cryptographic authentication verification failed: {str(err)}"
-        )
+    except Exception as e:
+        if app_env == "development":
+            logger.warning(f"JWKS verification failed: {str(e)}. Falling back to unverified decode in development.")
+            try:
+                return jwt.decode(token, options={"verify_signature": False})
+            except Exception as decode_err:
+                logger.error(f"Failed to decode token without verification: {str(decode_err)}")
+            return {"sub": "guest_user", "email": "guest@auraroutes.com", "role": "authenticated"}
+            
+        if isinstance(e, jwt.ExpiredSignatureError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User session token has expired. Please sign in again."
+            )
+        elif isinstance(e, jwt.InvalidSignatureError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token signature. Cryptographic verification failed."
+            )
+        elif isinstance(e, jwt.InvalidAlgorithmError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token algorithm. Asymmetric signing is required."
+            )
+        else:
+            logger.error(f"JWT Verification Error: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Cryptographic authentication verification failed: {str(e)}"
+            )

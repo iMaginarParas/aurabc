@@ -10,4 +10,5 @@ razorpay>=1.3.0
 email-validator>=2.0.0
 python-multipart>=0.0.18
 pyjwt>=2.8.0
+cryptography>=42.0.0
 
