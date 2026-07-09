@@ -1143,7 +1143,7 @@ class KCArticle(Base):
     reading_time_minutes = Column(Integer, default=5)
     word_count = Column(Integer, default=0)
     difficulty = Column(String(50), default="Beginner")
-    author_name = Column(String(200), default="Aura Routes Team")
+    author_name = Column(String(200), default="Aura Routes AI Team")
     author_role = Column(String(200), default="Study Abroad Expert")
     author_avatar = Column(String(500), nullable=True)
     published_at = Column(DateTime, nullable=True)

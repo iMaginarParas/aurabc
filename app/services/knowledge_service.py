@@ -87,7 +87,7 @@ ARTICLES_SEED = [
         "author_name": "Priya Sharma",
         "author_role": "Canada Immigration Specialist",
         "is_featured": True,
-        "seo_title": "Complete Guide to Studying in Canada 2025 | Aura Routes",
+        "seo_title": "Complete Guide to Studying in Canada 2025 | Aura Routes AI AI",
         "seo_description": "Everything Indian students need to know about studying in Canada — universities, Study Permit, SDS, PGWP, and Express Entry PR pathway.",
         "seo_keywords": ["study in Canada", "Canada student visa", "SDS Canada", "PGWP", "study permit Canada 2025"],
         "faqs": [
@@ -169,10 +169,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 12,
         "word_count": 3000,
         "difficulty": "Intermediate",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "UK Visa Specialists",
         "is_featured": True,
-        "seo_title": "UK Student Visa Guide 2025 — CAS, Biometrics & Graduate Visa | Aura Routes",
+        "seo_title": "UK Student Visa Guide 2025 — CAS, Biometrics & Graduate Visa | Aura Routes AI AI",
         "seo_description": "Complete UK Student Visa guide 2025. Learn how to get your CAS, meet financial requirements, book biometrics, and apply for the Graduate Visa after graduation.",
         "seo_keywords": ["UK student visa 2025", "CAS number UK", "UK graduate visa", "UKVI student route", "UK study permit"],
         "faqs": [
@@ -240,7 +240,7 @@ ARTICLES_SEED = [
         "author_name": "Rahul Verma",
         "author_role": "IELTS Expert | Band 8.5 Scorer",
         "is_featured": True,
-        "seo_title": "How to Score 7+ in IELTS 2025 | Complete Preparation Guide | Aura Routes",
+        "seo_title": "How to Score 7+ in IELTS 2025 | Complete Preparation Guide | Aura Routes AI AI",
         "seo_description": "Proven strategies to score 7 or above in IELTS Academic. Covers all four sections with expert tips, resources, and 8-week study plan.",
         "seo_keywords": ["IELTS 7+ preparation", "IELTS academic guide", "IELTS writing tips", "IELTS speaking band 7", "IELTS study plan 2025"],
         "faqs": [
@@ -330,10 +330,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 10,
         "word_count": 2500,
         "difficulty": "Beginner",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "Scholarship Research Division",
         "is_featured": True,
-        "seo_title": "Top 15 Scholarships for Indian Students Abroad 2025 | Aura Routes",
+        "seo_title": "Top 15 Scholarships for Indian Students Abroad 2025 | Aura Routes AI AI",
         "seo_description": "Discover fully-funded scholarships for Indian students in 2025 — DAAD, Chevening, Commonwealth, Australia Awards, and more with eligibility and application details.",
         "seo_keywords": ["scholarships for Indian students 2025", "fully funded scholarships India", "DAAD scholarship", "Chevening scholarship", "Commonwealth scholarship India"],
         "faqs": [
@@ -421,10 +421,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 11,
         "word_count": 2800,
         "difficulty": "Intermediate",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "Australia Immigration Specialists",
         "is_featured": False,
-        "seo_title": "Australia Student Visa Subclass 500 Guide 2025 | Aura Routes",
+        "seo_title": "Australia Student Visa Subclass 500 Guide 2025 | Aura Routes AI AI",
         "seo_description": "Complete Australia Subclass 500 Student Visa guide — GTE statement, financial requirements, health insurance, work rights, and 485 Graduate visa pathway.",
         "seo_keywords": ["Australia student visa 500", "GTE statement Australia", "subclass 500", "student visa Australia 2025", "485 graduate visa"],
         "faqs": [
@@ -486,10 +486,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 13,
         "word_count": 3200,
         "difficulty": "Intermediate",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "Education Finance Specialists",
         "is_featured": True,
-        "seo_title": "Education Loans for Studying Abroad India 2025 — Bank Comparison | Aura Routes",
+        "seo_title": "Education Loans for Studying Abroad India 2025 — Bank Comparison | Aura Routes AI AI",
         "seo_description": "Complete guide to education loans for Indian students going abroad — SBI, Bank of Baroda, HDFC Credila vs Prodigy Finance. Compare interest rates, collateral, and moratorium.",
         "seo_keywords": ["education loan abroad India", "SBI education loan", "Bank of Baroda education loan", "HDFC Credila", "education loan without collateral"],
         "faqs": [
@@ -551,7 +551,7 @@ ARTICLES_SEED = [
         "author_name": "Priya Sharma",
         "author_role": "Canadian Immigration Consultant (RCIC)",
         "is_featured": False,
-        "seo_title": "Canada PR for International Students 2025 — Express Entry Guide | Aura Routes",
+        "seo_title": "Canada PR for International Students 2025 — Express Entry Guide | Aura Routes AI AI",
         "seo_description": "Step-by-step guide to getting Canadian PR after graduating — PGWP, Express Entry, CRS score, Provincial Nominee Programs, and timeline.",
         "seo_keywords": ["Canada PR for international students", "express entry 2025", "CRS score", "PGWP to PR", "provincial nominee program"],
         "faqs": [
@@ -625,7 +625,7 @@ ARTICLES_SEED = [
         "author_name": "Dr. Meera Nair",
         "author_role": "Medical Education Consultant",
         "is_featured": True,
-        "seo_title": "MBBS Abroad for Indian Students 2025 — NMC Approved Countries | Aura Routes",
+        "seo_title": "MBBS Abroad for Indian Students 2025 — NMC Approved Countries | Aura Routes AI AI",
         "seo_description": "Complete MBBS abroad guide — NMC-approved countries, fees, FMGE/NExT exam, top colleges in Russia, Philippines, Georgia, and career pathways.",
         "seo_keywords": ["MBBS abroad for Indian students", "NMC approved colleges abroad", "MBBS Russia India", "FMGE 2025", "MBBS Philippines India"],
         "faqs": [
@@ -690,10 +690,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 10,
         "word_count": 2500,
         "difficulty": "Beginner",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "Student Life Experts",
         "is_featured": False,
-        "seo_title": "Student Accommodation Abroad 2025 — On-Campus vs Off-Campus Guide | Aura Routes",
+        "seo_title": "Student Accommodation Abroad 2025 — On-Campus vs Off-Campus Guide | Aura Routes AI AI",
         "seo_description": "Complete student housing guide for international students — compare on-campus, off-campus, and homestay options across Canada, UK, and Australia with costs.",
         "seo_keywords": ["student accommodation abroad", "international student housing", "student housing Canada UK Australia", "off campus student accommodation"],
         "faqs": [
@@ -752,10 +752,10 @@ ARTICLES_SEED = [
         "reading_time_minutes": 11,
         "word_count": 2800,
         "difficulty": "Intermediate",
-        "author_name": "Aura Routes Team",
+        "author_name": "Aura Routes AI Team",
         "author_role": "Germany Education Specialists",
         "is_featured": False,
-        "seo_title": "Germany Student Visa Guide 2025 — APS, Blocked Account & Job Seeker Visa | Aura Routes",
+        "seo_title": "Germany Student Visa Guide 2025 — APS, Blocked Account & Job Seeker Visa | Aura Routes AI AI",
         "seo_description": "Complete Germany student visa guide for Indian students — APS certificate, blocked account, health insurance, language requirements, and job seeker visa after graduation.",
         "seo_keywords": ["Germany student visa India", "APS certificate Germany", "blocked account Germany", "study in Germany free", "German job seeker visa"],
         "faqs": [
@@ -861,7 +861,7 @@ def generate_article_with_ai(topic: str, category_slug: str, country: str | None
 
         client = OpenAI(api_key=settings.openai_api_key)
 
-        prompt = f"""You are an expert study abroad content writer for Aura Routes, India's leading AI study abroad platform.
+        prompt = f"""You are an expert global career content writer for Aura Routes AI, India's leading AI study abroad platform.
 
 Write a comprehensive, SEO-optimised article about: "{topic}"
 Category: {category_slug}
@@ -967,7 +967,7 @@ def ask_ai_about_article(article_title: str, article_excerpt: str, article_conte
             "custom": question,
         }
 
-        system_prompt = f"""You are Aura AI, an expert study abroad assistant for Aura Routes. 
+        system_prompt = f"""You are Aura AI, an expert global career partner assistant for Aura Routes AI. 
 You are helping a student understand an article titled: "{article_title}"
 
 Article Summary: {article_excerpt}

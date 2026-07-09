@@ -99,15 +99,15 @@ class TestAuraRoutesAPI(unittest.TestCase):
             "sub": "test_auth_user_id",
             "email": "test.student@gmail.com",
             "role": "authenticated",
-            "user_metadata": {"full_name": "Test Auth Student"}
+            "user_metadata": {"full_name": "Test Student"}
         }
         
         # Test GET /api/profile (auto-creates a profile log)
         profile_res = self.client.get("/api/profile")
         self.assertEqual(profile_res.status_code, 200)
         profile_data = profile_res.json()
-        self.assertEqual(profile_data["email"], "test.student@gmail.com")
-        self.assertEqual(profile_data["full_name"], "Test Auth Student")
+        self.assertEqual(profile_data["personal"]["email"], "test.student@gmail.com")
+        self.assertEqual(profile_data["personal"]["full_name"], "Test Student")
 
         # Test GET /api/dashboard
         dashboard_res = self.client.get("/api/dashboard")

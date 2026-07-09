@@ -149,7 +149,7 @@ def verify_payment_signature_and_log(
     # 3. Send HTML Email Invoice using standard SMTP service
     email_html = generate_payment_confirmation_email_html(db_order, db_payment, billing_name, email)
     from .email_service import send_email
-    send_email(email, f"Aura Routes Payment Receipt - {db_order.service_title}", email_html)
+    send_email(email, f"Aura Routes AI Payment Receipt - {db_order.service_title}", email_html)
 
     return db_payment
 
@@ -163,7 +163,7 @@ def generate_payment_confirmation_email_html(order: Order, payment: Payment, bil
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Aura Routes Payment Invoice</title>
+  <title>Aura Routes AI Payment Invoice</title>
   <style>
     body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 40px 0; color: #1f2937; }}
     .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; }}
@@ -187,7 +187,7 @@ def generate_payment_confirmation_email_html(order: Order, payment: Payment, bil
 <body>
   <div class="container">
     <div class="header">
-      <h1>Aura Routes</h1>
+      <h1>Aura Routes AI</h1>
       <p>Payment Invoice & Confirmation</p>
     </div>
     <div class="content">
@@ -230,7 +230,7 @@ def generate_payment_confirmation_email_html(order: Order, payment: Payment, bil
       </p>
     </div>
     <div class="footer">
-      © {datetime.utcnow().year} Aura Routes Platform • Innovation Arcade, Sector 5, HSR Layout, Bengaluru, India
+      © {datetime.utcnow().year} Aura Routes AI • Innovation Arcade, Sector 5, HSR Layout, Bengaluru, India
     </div>
   </div>
 </body>
@@ -649,37 +649,37 @@ def seed_whatsapp_defaults(db: Session):
             {
                 "name": "Welcome Message",
                 "event": "STUDENT_REGISTERED",
-                "template": "Hi {{student_name}} 👋\n\nWelcome to Aura Routes! Prepare your study abroad files with premium AI assistance.\n\nBest,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nWelcome to Aura Routes AI! Prepare your study abroad files with premium AI assistance.\n\nBest,\nAura Routes AI"
             },
             {
                 "name": "Eligibility Completion",
                 "event": "ELIGIBILITY_COMPLETED",
-                "template": "Hi {{student_name}} 👋\n\nYour AI Study Eligibility Report has been successfully generated. You can now view it on your dashboard.\n\nBest,\nAura Routes Team"
+                "template": "Hi {{student_name}} 👋\n\nYour AI Study Eligibility Report has been successfully generated. You can now view it on your dashboard.\n\nBest,\nAura Routes AI Team"
             },
             {
                 "name": "Payment Successful Confirmation",
                 "event": "PAYMENT_SUCCESS",
-                "template": "Hi {{student_name}} 👋\n\nThank you! We've received your payment of {{amount}} for the {{service_name}} package.\n\nThank you,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nThank you! We've received your payment of {{amount}} for the {{service_name}} package.\n\nThank you,\nAura Routes AI"
             },
             {
                 "name": "Payment Failed Warning",
                 "event": "PAYMENT_FAILED",
-                "template": "Hi {{student_name}} 👋\n\nAlert! Your payment transaction of {{amount}} for {{service_name}} was declined.\n\nSupport,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nAlert! Your payment transaction of {{amount}} for {{service_name}} was declined.\n\nSupport,\nAura Routes AI"
             },
             {
                 "name": "SOP Ready Alert",
                 "event": "SOP_GENERATED",
-                "template": "Hi {{student_name}} 👋\n\nYour AI Statement of Purpose (SOP) is ready for download in your workspace. Check it out!\n\nBest,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nYour AI Statement of Purpose (SOP) is ready for download in your workspace. Check it out!\n\nBest,\nAura Routes AI"
             },
             {
                 "name": "Document Scan Audit Completed",
                 "event": "DOCUMENT_CHECK_COMPLETED",
-                "template": "Hi {{student_name}} 👋\n\nOur AI Document Checker has finished analyzing your uploaded files. Gaps report is generated.\n\nBest,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nOur AI Document Checker has finished analyzing your uploaded files. Gaps report is generated.\n\nBest,\nAura Routes AI"
             },
             {
                 "name": "Consultation Booked Alert",
                 "event": "CONSULTATION_BOOKED",
-                "template": "Hi {{student_name}} 👋\n\nYour consultation session with {{consultant_name}} has been booked for {{date_time}}.\n\nBest,\nAura Routes"
+                "template": "Hi {{student_name}} 👋\n\nYour consultation session with {{consultant_name}} has been booked for {{date_time}}.\n\nBest,\nAura Routes AI"
             }
         ]
         for t in templates:

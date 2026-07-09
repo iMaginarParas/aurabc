@@ -690,7 +690,7 @@ def export_profile_data(
     return {
         "export_metadata": {
             "exported_at": datetime.utcnow().isoformat(),
-            "platform": "Aura Routes Master Profile Engine",
+            "platform": "Aura Routes AI Master Profile Engine",
             "version": "1.0.0"
         },
         "profile": profile_data,

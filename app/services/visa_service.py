@@ -305,7 +305,7 @@ def get_fallback_visa_report(country: str, visa_type: str, ocr_payloads: List[Di
         ],
         "next_steps": [
             "Resolve any failed check guidelines listed.",
-            "Schedule document verification zoom call with an Aura Routes mentor."
+            "Schedule document verification zoom call with an Aura Routes AI mentor."
         ],
         "estimated_approval": f"{score}%",
         "document_analyses": doc_analyses

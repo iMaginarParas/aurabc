@@ -163,7 +163,7 @@ class JourneyAutomationService:
         activity = JourneyActivity(
             journey_id=journey.id,
             activity_type="Journey Initialized",
-            description="Welcome to Aura Routes! Your personalized Study Abroad Journey has been initialized."
+            description="Welcome to Aura Routes AI! Your personalized Global Career Journey has been initialized."
         )
         db.add(activity)
         db.commit()

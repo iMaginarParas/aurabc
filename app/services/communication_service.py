@@ -75,8 +75,8 @@ def seed_communication_data(db: Session):
                 EmailLog(
                     user_id="guest_user",
                     recipient_email="student@auraroutes.com",
-                    subject="Welcome to Aura Routes!",
-                    body_html="<h3>Welcome to Aura Routes!</h3><p>We are excited to help you navigate your global admissions. Start by completing your profile setting evaluated checker.</p>",
+                    subject="Welcome to Aura Routes AI!",
+                    body_html="<h3>Welcome to Aura Routes AI!</h3><p>We are excited to help you navigate your global admissions. Start by completing your profile setting evaluated checker.</p>",
                     status="Sent",
                     created_at=datetime.utcnow() - timedelta(days=5)
                 ),
@@ -113,7 +113,7 @@ def seed_communication_data(db: Session):
                     event_type="welcome",
                     phone_number="+91 98912 63337",
                     template_name="welcome_message_template",
-                    message="Welcome to Aura Routes, student! Your personalized portal is ready: dashboard.auraroutes.com",
+                    message="Welcome to Aura Routes AI, student! Your personalized portal is ready: dashboard.auraroutes.com",
                     status="Sent",
                     created_at=datetime.utcnow() - timedelta(days=5)
                 ),
@@ -227,7 +227,7 @@ def seed_communication_data(db: Session):
                     created_at=datetime.utcnow() - timedelta(days=10)
                 ),
                 Announcement(
-                    title="Aura Routes Partnership with HDFC Credila",
+                    title="Aura Routes AI Partnership with HDFC Credila",
                     content="We are pleased to introduce pre-approved education loan paths directly through our platform. Students going to Canada or the UK can access preferential interest rates of 9.25% p.a. with zero collateral.",
                     category="Update",
                     priority="Info",
