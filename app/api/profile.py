@@ -143,7 +143,7 @@ def calculate_completion_scores(profile: Profile, db: Session) -> Dict[str, int]
     return scores
 
 
-def get_or_create_master_profile(db: Session, user_id: str, email: str = None) -> Profile:
+def get_or_create_master_profile(db: Session, user_id: str, email: str = None, full_name: str = None) -> Profile:
     """
     Retrieves the master profile for the user_id. If none exists, attempts to 
     onboard/migrate using historical EligibilityRequest data, otherwise initializes an empty profile.
@@ -229,6 +229,7 @@ def get_or_create_master_profile(db: Session, user_id: str, email: str = None) -
         # Initialize brand new profile
         profile = Profile(
             user_id=user_id,
+            full_name=full_name,
             email=email,
             verification_status="Unverified"
         )
@@ -294,7 +295,9 @@ def get_student_profile(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
         
     email = current_user.get("email")
-    profile = get_or_create_master_profile(db, user_id, email)
+    user_metadata = current_user.get("user_metadata", {}) or {}
+    full_name = user_metadata.get("full_name") or user_metadata.get("name")
+    profile = get_or_create_master_profile(db, user_id, email, full_name)
     
     # Prepare structured responses matching Schemas
     scores = calculate_completion_scores(profile, db)
@@ -388,6 +391,55 @@ def get_student_profile(
     }
 
 
+def sync_eligibility_request(db: Session, email: str, profile: Profile):
+    """
+    Keep legacy EligibilityRequest table in sync with master Profile changes.
+    """
+    if not email:
+        return
+    elig = db.query(EligibilityRequest).filter(EligibilityRequest.email == email).first()
+    
+    acad = profile.academic_profile
+    pref = profile.study_preferences
+
+    qualification = acad.highest_qualification if (acad and acad.highest_qualification) else ""
+    preferred_country = pref.preferred_countries[0] if (pref and pref.preferred_countries) else ""
+    preferred_course = pref.preferred_courses[0] if (pref and pref.preferred_courses) else ""
+    preferred_intake = pref.target_intake if pref else ""
+    budget_range = pref.budget if pref else ""
+
+    if not elig:
+        elig = EligibilityRequest(
+            email=email,
+            full_name=profile.full_name or "",
+            phone=profile.phone or "",
+            country_residence=profile.country_residence or "",
+            nationality=profile.nationality or "",
+            qualification=qualification,
+            preferred_country=preferred_country,
+            preferred_course=preferred_course,
+            preferred_intake=preferred_intake,
+            budget_range=budget_range,
+            gpa_10th=8.5,
+            gpa_12th=8.5,
+            grad_year=2024,
+            english_exam="IELTS"
+        )
+        db.add(elig)
+    else:
+        elig.full_name = profile.full_name or elig.full_name
+        elig.phone = profile.phone or elig.phone
+        elig.country_residence = profile.country_residence or elig.country_residence
+        elig.nationality = profile.nationality or elig.nationality
+        elig.qualification = qualification or elig.qualification
+        elig.preferred_country = preferred_country or elig.preferred_country
+        elig.preferred_course = preferred_course or elig.preferred_course
+        elig.preferred_intake = preferred_intake or elig.preferred_intake
+        elig.budget_range = budget_range or elig.budget_range
+
+    db.commit()
+
+
 @router.put("/api/profile", response_model=ProfileResponse)
 def update_student_profile(
     payload: MasterProfileUpdate,
@@ -401,7 +453,10 @@ def update_student_profile(
     if user_id == "guest_user":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
         
-    profile = get_or_create_master_profile(db, user_id, current_user.get("email"))
+    email = current_user.get("email")
+    user_metadata = current_user.get("user_metadata", {}) or {}
+    full_name = user_metadata.get("full_name") or user_metadata.get("name")
+    profile = get_or_create_master_profile(db, user_id, email, full_name)
     
     # 1. Update Personal
     if payload.personal:
@@ -431,6 +486,12 @@ def update_student_profile(
     db.commit()
     db.refresh(profile)
     
+    # Sync with legacy EligibilityRequest table
+    try:
+        sync_eligibility_request(db, current_user.get("email"), profile)
+    except Exception as e:
+        logger.warning(f"Failed to sync master profile to EligibilityRequest: {str(e)}")
+        
     return get_student_profile(db, current_user)
 
 

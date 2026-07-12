@@ -48,47 +48,12 @@ def get_dashboard_overview(
     user_id = current_user.get("sub")
     user_email = current_user.get("email")
 
-    # 1. Profile completeness calculation
-    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
-    
-    # Auto-create profile from Google User Metadata if it doesn't exist
-    if not profile:
-        user_metadata = current_user.get("user_metadata", {})
-        g_name = user_metadata.get("full_name") or user_metadata.get("name") or "New Student"
-        g_email = user_email or current_user.get("email") or "student@auraroutes.com"
-        
-        profile = EligibilityRequest(
-            full_name=g_name,
-            email=g_email,
-            phone="",
-            country_residence="",
-            nationality="",
-            qualification="",
-            gpa_10th=0.0,
-            gpa_12th=0.0,
-            grad_year=2026,
-            english_exam="None",
-            preferred_country="",
-            preferred_course="",
-            preferred_intake="",
-            budget_range=""
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
+    # 1. Profile completeness calculation using master Profile
+    from .profile import get_or_create_master_profile, calculate_completion_scores
+    master_profile = get_or_create_master_profile(db, user_id, user_email)
+    scores = calculate_completion_scores(master_profile, db)
+    completeness = scores.get("overall", 0)
 
-    completeness = 0
-    fields = [
-        profile.full_name, profile.email, profile.phone,
-        profile.country_residence, profile.nationality, profile.qualification,
-        profile.preferred_country, profile.preferred_course,
-        profile.preferred_intake, profile.budget_range
-    ]
-    score = 0
-    for field in fields:
-        if field and str(field).strip():
-            score += 10
-    completeness = score
 
     # 2. Purchased premium services slugs
     paid_services = db.query(Service.slug).join(Order).filter(
@@ -139,48 +104,33 @@ def get_student_profile(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Retrieves student profile parameters from eligibility logs.
+    Retrieves student profile parameters from the master profile.
     """
     if current_user.get("sub") == "guest_user":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
     user_email = current_user.get("email")
 
-    profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
-    if not profile:
-        user_metadata = current_user.get("user_metadata", {})
-        g_name = user_metadata.get("full_name") or user_metadata.get("name") or "New Student"
-        g_email = user_email or current_user.get("email") or "student@auraroutes.com"
-        
-        profile = EligibilityRequest(
-            full_name=g_name,
-            email=g_email,
-            phone="",
-            country_residence="",
-            nationality="",
-            qualification="",
-            gpa_10th=0.0,
-            gpa_12th=0.0,
-            grad_year=2026,
-            english_exam="None",
-            preferred_country="",
-            preferred_course="",
-            preferred_intake="",
-            budget_range=""
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
+    from .profile import get_or_create_master_profile
+    master_profile = get_or_create_master_profile(db, user_id, user_email)
     
+    acad = master_profile.academic_profile
+    pref = master_profile.study_preferences
+
+    preferred_country = pref.preferred_countries[0] if (pref and pref.preferred_countries) else ""
+    preferred_course = pref.preferred_courses[0] if (pref and pref.preferred_courses) else ""
+    preferred_intake = pref.target_intake if pref else ""
+
     return {
-        "full_name": profile.full_name,
-        "email": profile.email,
-        "phone": profile.phone,
-        "country_residence": profile.country_residence,
-        "nationality": profile.nationality,
-        "qualification": profile.qualification,
-        "preferred_country": profile.preferred_country,
-        "preferred_course": profile.preferred_course,
-        "preferred_intake": profile.preferred_intake
+        "full_name": master_profile.full_name or "",
+        "email": master_profile.email or "",
+        "phone": master_profile.phone or "",
+        "country_residence": master_profile.country_residence or "",
+        "nationality": master_profile.nationality or "",
+        "qualification": acad.highest_qualification if (acad and acad.highest_qualification) else "",
+        "preferred_country": preferred_country,
+        "preferred_course": preferred_course,
+        "preferred_intake": preferred_intake
     }
 
 
@@ -191,13 +141,31 @@ def update_student_profile(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Updates or inserts the student profile parameters in the database logs.
+    Updates or inserts the student profile parameters in both master profile and eligibility request logs.
     """
     if current_user.get("sub") == "guest_user":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     user_id = current_user.get("sub")
     user_email = current_user.get("email")
 
+    # Update master profile
+    from .profile import get_or_create_master_profile
+    master_profile = get_or_create_master_profile(db, user_id, user_email)
+    
+    master_profile.full_name = payload.full_name
+    master_profile.phone = payload.phone
+    master_profile.country_residence = payload.country_residence
+    master_profile.nationality = payload.nationality
+    
+    if master_profile.academic_profile:
+        master_profile.academic_profile.highest_qualification = payload.qualification
+        
+    if master_profile.study_preferences:
+        master_profile.study_preferences.preferred_countries = [payload.preferred_country] if payload.preferred_country else []
+        master_profile.study_preferences.preferred_courses = [payload.preferred_course] if payload.preferred_course else []
+        master_profile.study_preferences.target_intake = payload.preferred_intake
+
+    # Also update EligibilityRequest for legacy service support
     profile = db.query(EligibilityRequest).filter(EligibilityRequest.email == user_email).first()
     if not profile:
         profile = EligibilityRequest(
@@ -236,17 +204,25 @@ def update_student_profile(
     db.add(activity)
 
     db.commit()
+    db.refresh(master_profile)
     db.refresh(profile)
+
+    acad = master_profile.academic_profile
+    pref = master_profile.study_preferences
+    preferred_country = pref.preferred_countries[0] if (pref and pref.preferred_countries) else ""
+    preferred_course = pref.preferred_courses[0] if (pref and pref.preferred_courses) else ""
+    preferred_intake = pref.target_intake if pref else ""
+
     return {
-        "full_name": profile.full_name,
-        "email": profile.email,
-        "phone": profile.phone,
-        "country_residence": profile.country_residence,
-        "nationality": profile.nationality,
-        "qualification": profile.qualification,
-        "preferred_country": profile.preferred_country,
-        "preferred_course": profile.preferred_course,
-        "preferred_intake": profile.preferred_intake
+        "full_name": master_profile.full_name or "",
+        "email": master_profile.email or "",
+        "phone": master_profile.phone or "",
+        "country_residence": master_profile.country_residence or "",
+        "nationality": master_profile.nationality or "",
+        "qualification": acad.highest_qualification if (acad and acad.highest_qualification) else "",
+        "preferred_country": preferred_country,
+        "preferred_course": preferred_course,
+        "preferred_intake": preferred_intake
     }
 
 

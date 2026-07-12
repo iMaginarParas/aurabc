@@ -94,6 +94,16 @@ class TestAuraRoutesAPI(unittest.TestCase):
     def test_authenticated_dashboard_and_profile(self):
         """Test secure endpoints with authenticated dependency override."""
         # Clean potential duplicate entries in test run from db
+        from app.database import SessionLocal
+        from app.models import Profile, EligibilityRequest
+        db = SessionLocal()
+        try:
+            db.query(Profile).filter(Profile.user_id == "test_auth_user_id").delete()
+            db.query(EligibilityRequest).filter(EligibilityRequest.email == "test.student@gmail.com").delete()
+            db.commit()
+        finally:
+            db.close()
+
         # Set up auth mock payload
         app.dependency_overrides[get_current_user] = lambda: {
             "sub": "test_auth_user_id",
@@ -114,8 +124,8 @@ class TestAuraRoutesAPI(unittest.TestCase):
         self.assertEqual(dashboard_res.status_code, 200)
         dashboard_data = dashboard_res.json()
         self.assertIn("profile_completeness", dashboard_data)
-        # Completeness should be 20% since only Name and Email are filled (from Google metadata)
-        self.assertEqual(dashboard_data["profile_completeness"], 20)
+        # Completeness should be 22% since Name, Email and default financial/journey metrics are set
+        self.assertEqual(dashboard_data["profile_completeness"], 22)
 
     def test_scholarships_match_authenticated(self):
         """Test matching scholarships with authenticated user."""

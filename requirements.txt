@@ -11,4 +11,5 @@ email-validator>=2.0.0
 python-multipart>=0.0.18
 pyjwt>=2.8.0
 cryptography>=42.0.0
+replicate>=0.25.0
 
