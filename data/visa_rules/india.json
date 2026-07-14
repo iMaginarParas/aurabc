@@ -1,0 +1,29 @@
+{
+  "country": "India",
+  "required_documents": [
+    "Class 12 Marksheet",
+    "Class 10 Marksheet"
+  ],
+  "optional_documents": [
+    "Passport",
+    "NEET Score Card",
+    "DASA/CIWG Certificate",
+    "NRI Sponsor Documents"
+  ],
+  "validation_rules": {
+    "Passport": "Required for NRI, OCI, PIO and foreign nationals. Must be valid for at least six months from the date of admission/travel.",
+    "Class 12 Marksheet": "Must show qualifying marks in prerequisite subjects. Science group (PCB) for MBBS/Nursing requires at least 50% aggregate for general category. Engineering requires Physics, Chemistry, Mathematics (PCM).",
+    "Class 10 Marksheet": "Used for verifying date of birth and candidate name consistency across all certificates.",
+    "NEET Score Card": "Mandatory for MBBS admissions. Must show qualified status with score, rank, and category matching applicant identity.",
+    "DASA/CIWG Certificate": "For DASA/CIWG quota applicants. Must prove foreign nationality/OCI/PIO or NRI status with at least 2 years of education abroad in classes 11 and 12.",
+    "NRI Sponsor Documents": "For NRI quota admissions. Must contain sponsor's valid passport, visa/work permit, relationship certificate/declaration, and sponsor's bank statement showing adequate funds."
+  },
+  "critical_rules": [
+    "NEET Score Card is mandatory for medical (MBBS) admissions in India.",
+    "Name and date of birth must match exactly across Passport, Class 10, and Class 12 documents.",
+    "For DASA/CIWG candidates, proof of education abroad (schooling certificate for classes 11 & 12 outside India) is mandatory."
+  ],
+  "ai_instructions": "Verify name spelling across marksheets, check science group subjects and percentages, validate NEET qualification status, and inspect NRI sponsor relationships.",
+  "pass_examples": "NEET score 610/720 qualified, 12th marks PCB aggregate 85%, name 'Priyan Bose' matches across all files.",
+  "fail_examples": "NEET score card missing for MBBS application, or Class 12 aggregate PCB score is under 50%."
+}

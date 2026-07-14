@@ -463,6 +463,38 @@ class JourneyAutomationService:
         """
         Advanced auto-trigger: Unlocks premium journey tasks when a paid invoice is detected.
         """
+        # Unlock country access tiers
+        from ..models import UserCountryTier, Payment, Order
+        from sqlalchemy import desc
+        
+        if service_slug in ["tier-2-country-access", "tier-3-country-access"]:
+            target_tier = 2 if service_slug == "tier-2-country-access" else 3
+            
+            # Find recent captured payment for user_id to link payment_id
+            payment_record = db.query(Payment).join(Order).filter(
+                Order.user_id == user_id,
+                Order.payment_status == "paid",
+                Order.service.has(slug=service_slug)
+            ).order_by(desc(Payment.transaction_date)).first()
+            
+            payment_id = payment_record.razorpay_payment_id if payment_record else None
+            
+            tier_record = db.query(UserCountryTier).filter(UserCountryTier.user_id == user_id).first()
+            if not tier_record:
+                tier_record = UserCountryTier(
+                    user_id=user_id,
+                    tier_purchased=target_tier,
+                    purchase_date=datetime.utcnow(),
+                    payment_id=payment_id
+                )
+                db.add(tier_record)
+            else:
+                if target_tier > tier_record.tier_purchased:
+                    tier_record.tier_purchased = target_tier
+                    tier_record.purchase_date = datetime.utcnow()
+                    tier_record.payment_id = payment_id
+            db.commit()
+
         journey = db.query(StudentJourney).filter(StudentJourney.user_id == user_id).first()
         if not journey:
             return

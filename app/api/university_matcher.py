@@ -2,12 +2,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List
+from typing import List, Dict, Any
 
 from ..database import get_db
 from ..auth import get_current_user
 from ..models import University, UniversityMatch, SavedUniversity, UniversityComparison, DashboardActivity
 from ..schemas import (
+    IndianCollegeProfileInput,
+    IndianCollegeMatchResponse,
     UniversityResponse,
     UniversityProfileInput,
     UniversityMatchResponse,
@@ -16,7 +18,7 @@ from ..schemas import (
     ComparisonRequest,
     ComparisonResponse
 )
-from ..services.match_service import evaluate_university_matches_ai
+from ..services.match_service import evaluate_university_matches_ai, evaluate_indian_college_matches_ai
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["university_matcher"])
@@ -221,3 +223,75 @@ def save_comparison_matrix(
     db.commit()
     db.refresh(db_comp)
     return db_comp
+
+
+# ─── Study in India Endpoints ───────────────────────────────────────────────
+
+@router.post("/api/india/college-matcher", response_model=IndianCollegeMatchResponse)
+def match_indian_colleges(
+    payload: IndianCollegeProfileInput,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Submits student profiles to OpenAI/fallback to generate matched Indian college recommendations.
+    """
+    if current_user.get("sub") == "guest_user":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    user_id = current_user.get("sub")
+    try:
+        profile_dict = payload.model_dump()
+        recs = evaluate_indian_college_matches_ai(db, profile_dict)
+        
+        # Log to Database (reusing UniversityMatch model since it stores JSON)
+        db_match = UniversityMatch(
+            user_id=user_id,
+            profile_data={**profile_dict, "module": "india"},
+            recommendations=recs
+        )
+        db.add(db_match)
+        
+        activity = DashboardActivity(
+            user_id=user_id,
+            activity_type="College Match",
+            description=f"Generated {len(recs)} Indian college matches for {payload.course}."
+        )
+        db.add(activity)
+        db.commit()
+        db.refresh(db_match)
+        return db_match
+    except Exception as e:
+        logger.error(f"Indian college matching failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to evaluate Indian college matches."
+        )
+
+
+@router.get("/api/india/colleges/catalog", response_model=List[Dict[str, Any]])
+def get_indian_colleges_catalog(db: Session = Depends(get_db)):
+    """
+    Lists the seeded Indian colleges.
+    """
+    from ..models import IndianCollege
+    colleges = db.query(IndianCollege).filter(IndianCollege.status == "Active").all()
+    
+    result = []
+    for c in colleges:
+        result.append({
+            "id": c.id,
+            "name": c.name,
+            "location": c.location,
+            "state": c.state,
+            "city": c.city,
+            "course": c.course,
+            "specializations": c.specializations,
+            "neet_required": c.neet_required,
+            "dasa_eligible": c.dasa_eligible,
+            "ciwg_eligible": c.ciwg_eligible,
+            "nri_fee_structure": c.nri_fee_structure,
+            "international_fee_structure": c.international_fee_structure,
+            "hostel_available": c.hostel_available,
+            "website": c.website
+        })
+    return result

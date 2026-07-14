@@ -37,6 +37,35 @@ async def check_eligibility(
     """
     client_ip = request.client.host if request.client else None
     
+    # Enforce tiered country access validation on the backend
+    email = payload.personal_info.email
+    from ..models import Profile, UserCountryTier
+    db_profile = db.query(Profile).filter(Profile.email == email).first()
+    
+    tier_level = 1
+    if db_profile:
+        user_id = db_profile.user_id
+        tier_access = db.query(UserCountryTier).filter(UserCountryTier.user_id == user_id).first()
+        if tier_access:
+            tier_level = tier_access.tier_purchased
+            
+    tier_1_countries = {"Canada", "UK", "USA", "Australia", "Germany", "Ireland", "New Zealand", "Dubai", "Singapore", "France"}
+    tier_2_countries = tier_1_countries.union({
+        "Georgia", "Kazakhstan", "Uzbekistan", "Philippines", "Poland", "Italy", "Netherlands", "Portugal", "Finland", "Malta", "Romania", "Serbia", "Hungary"
+    })
+    
+    preferred_country = payload.study_preferences.preferred_country
+    if tier_level == 1 and preferred_country not in tier_1_countries:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Country '{preferred_country}' is locked. Upgrade to Tier 2 or Tier 3 to evaluate eligibility."
+        )
+    elif tier_level == 2 and preferred_country not in tier_2_countries:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Country '{preferred_country}' is locked. Upgrade to Tier 3 to evaluate all destinations."
+        )
+        
     # 1. Store the request in DB (Initial status: pending)
     db_request = EligibilityRequest(
         full_name=payload.personal_info.full_name,
@@ -95,9 +124,10 @@ async def check_eligibility(
         "passport_available": db_request.passport_available
     }
 
-    # 3. Call AI Service
+    # 3. Call AI Service with allowed countries filter
     try:
-        ai_evaluation = evaluate_student_profile(profile_dict)
+        allowed_countries = list(tier_1_countries) if tier_level == 1 else (list(tier_2_countries) if tier_level == 2 else None)
+        ai_evaluation = evaluate_student_profile(profile_dict, allowed_countries)
         
         # Save evaluation result to DB
         db_result = EligibilityResult(

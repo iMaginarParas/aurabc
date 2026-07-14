@@ -1,4 +1,6 @@
 import logging
+import os
+import replicate
 from sqlalchemy.orm import Session
 from openai import AsyncOpenAI
 from fastapi import HTTPException, status
@@ -13,9 +15,17 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self):
-        # Initialize AsyncOpenAI client
+        # Initialize client depending on key prefix
         api_key = settings.openai_api_key or ""
-        self.client = AsyncOpenAI(api_key=api_key) if api_key else None
+        self.api_key = api_key
+        
+        if api_key.startswith("r8_"):
+            os.environ["REPLICATE_API_TOKEN"] = api_key
+            self.is_replicate = True
+            self.client = replicate.Client(api_token=api_key)
+        else:
+            self.is_replicate = False
+            self.client = AsyncOpenAI(api_key=api_key) if api_key else None
 
     def _approximate_tokens(self, text: str) -> int:
         """
@@ -69,22 +79,54 @@ class ChatService:
             # Append current user prompt
             messages.append({"role": "user", "content": new_user_message_content})
 
-            # 4. Stream call OpenAI
+            # 4. Stream call OpenAI / Replicate
             # Using gpt-4o-mini as a high-speed, cost-effective default model (or fallback to gpt-4)
             model_name = "gpt-4"
-            response = await self.client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                stream=True,
-                temperature=0.7
-            )
-
             assistant_reply_accumulated = []
-            async for chunk in response:
-                delta = chunk.choices[0].delta.content or ""
-                if delta:
-                    assistant_reply_accumulated.append(delta)
-                    yield delta
+
+            if self.is_replicate:
+                replicate_model = f"openai/{model_name}" if not model_name.startswith("openai/") else model_name
+                
+                # Combine chat messages history for Replicate OpenAI proxy format
+                system_prompt = ""
+                user_prompts = []
+                for msg in messages:
+                    role = msg.get("role")
+                    content = msg.get("content")
+                    if role == "system":
+                        system_prompt = content
+                    elif role == "user":
+                        user_prompts.append(f"User: {content}")
+                    elif role == "assistant":
+                        user_prompts.append(f"Assistant: {content}")
+                
+                prompt = "\n".join(user_prompts)
+                
+                async for event in await self.client.async_stream(
+                    replicate_model,
+                    input={
+                        "prompt": prompt,
+                        "system_prompt": system_prompt,
+                        "temperature": 0.7
+                    }
+                ):
+                    delta = str(event)
+                    if delta:
+                        assistant_reply_accumulated.append(delta)
+                        yield delta
+            else:
+                response = await self.client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    stream=True,
+                    temperature=0.7
+                )
+
+                async for chunk in response:
+                    delta = chunk.choices[0].delta.content or ""
+                    if delta:
+                        assistant_reply_accumulated.append(delta)
+                        yield delta
 
             # 5. Calculate and log token consumption
             accumulated_text = "".join(assistant_reply_accumulated)

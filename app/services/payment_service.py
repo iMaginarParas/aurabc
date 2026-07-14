@@ -241,8 +241,6 @@ def seed_initial_services(db: Session):
     """
     Populates the Service catalog table if it is currently empty.
     """
-    if db.query(Service).count() > 0:
-        return
         
     logger.info("Seeding initial service packages into the database...")
     initial_services = [
@@ -317,10 +315,37 @@ def seed_initial_services(db: Session):
             "badge": "Best Value",
             "display_order": 6,
             "features": ["60 Min NMC pathway call", "Eligibility checks and translations", "Collateral loan advice", "NEXT/USMLE prep guidance"]
+        },
+        {
+            "slug": "tier-2-country-access",
+            "title": "Tier 2 Country Access Upgrade",
+            "short_description": "Unlock 20+ destination countries.",
+            "description": "Access additional study destinations like Poland, Italy, Finland, Portugal, Philippines, Kazakhstan, etc. in your AI Eligibility report.",
+            "price": 399.00,
+            "currency": "INR",
+            "icon": "Globe",
+            "badge": "New",
+            "display_order": 7,
+            "features": ["Unlock 20+ countries", "Access Poland, Italy, Finland", "Valid for all future reports", "Includes premium visa checklists"]
+        },
+        {
+            "slug": "tier-3-country-access",
+            "title": "Tier 3 Country Access Upgrade",
+            "short_description": "Unlock ALL destinations.",
+            "description": "Gain lifetime evaluation access for all 40+ countries globally in the AI Eligibility Checker and Matchers.",
+            "price": 999.00,
+            "currency": "INR",
+            "icon": "Crown",
+            "badge": "Popular",
+            "display_order": 8,
+            "features": ["Unlock all 40+ global countries", "Includes Tier 2 countries", "Direct admissions checks", "Priority mentoring slot support"]
         }
     ]
 
     for s_data in initial_services:
+        existing = db.query(Service).filter(Service.slug == s_data["slug"]).first()
+        if existing:
+            continue
         db_service = Service(
             slug=s_data["slug"],
             title=s_data["title"],
@@ -703,6 +728,361 @@ def seed_whatsapp_defaults(db: Session):
     logger.info("WhatsApp default configurations seeded successfully.")
 
 
+def seed_indian_colleges(db: Session):
+    """
+    Seeds a representative list of top Indian colleges for MBBS, Nursing, Engineering, and Management.
+    """
+    from ..models import IndianCollege
+
+    if db.query(IndianCollege).count() > 0:
+        return
+
+    logger.info("Seeding top Indian colleges database...")
+    colleges = [
+        # MBBS
+        {
+            "name": "All India Institute of Medical Sciences (AIIMS)",
+            "location": "Ansari Nagar, New Delhi",
+            "state": "Delhi",
+            "city": "New Delhi",
+            "course": "MBBS",
+            "specializations": "General Medicine, Surgery, Pediatrics, Cardiology, Neurology",
+            "neet_required": True,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$22,000 USD / year",
+            "international_fee_structure": "$25,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.aiims.edu",
+            "status": "Active"
+        },
+        {
+            "name": "Christian Medical College (CMC)",
+            "location": "Ida Scudder Road, Vellore",
+            "state": "Tamil Nadu",
+            "city": "Vellore",
+            "course": "MBBS",
+            "specializations": "General Medicine, Surgery, Orthopedics, Ophthalmology",
+            "neet_required": True,
+            "dasa_eligible": True,
+            "ciwg_eligible": True,
+            "nri_fee_structure": "$18,000 USD / year",
+            "international_fee_structure": "$20,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.cmch-vellore.edu",
+            "status": "Active"
+        },
+        {
+            "name": "Armed Forces Medical College (AFMC)",
+            "location": "Wanowrie, Pune",
+            "state": "Maharashtra",
+            "city": "Pune",
+            "course": "MBBS",
+            "specializations": "General Medicine, Military Medicine, Surgery",
+            "neet_required": True,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": None,
+            "international_fee_structure": None,
+            "hostel_available": True,
+            "website": "https://www.afmc.nic.in",
+            "status": "Active"
+        },
+        {
+            "name": "Kasturba Medical College (KMC)",
+            "location": "Madhav Nagar, Manipal",
+            "state": "Karnataka",
+            "city": "Manipal",
+            "course": "MBBS",
+            "specializations": "General Medicine, Surgery, Pediatrics, Dermatology",
+            "neet_required": True,
+            "dasa_eligible": True,
+            "ciwg_eligible": True,
+            "nri_fee_structure": "$24,000 USD / year",
+            "international_fee_structure": "$26,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.manipal.edu",
+            "status": "Active"
+        },
+        # Nursing
+        {
+            "name": "AIIMS College of Nursing",
+            "location": "Ansari Nagar, New Delhi",
+            "state": "Delhi",
+            "city": "New Delhi",
+            "course": "Nursing",
+            "specializations": "B.Sc. Nursing, M.Sc. Psychiatric Nursing, M.Sc. Pediatric Nursing",
+            "neet_required": False,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$4,000 USD / year",
+            "international_fee_structure": "$5,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.aiims.edu",
+            "status": "Active"
+        },
+        {
+            "name": "CMC College of Nursing",
+            "location": "Kagithapattarai, Vellore",
+            "state": "Tamil Nadu",
+            "city": "Vellore",
+            "course": "Nursing",
+            "specializations": "B.Sc. Nursing, M.Sc. Medical Surgical Nursing",
+            "neet_required": False,
+            "dasa_eligible": True,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$3,500 USD / year",
+            "international_fee_structure": "$4,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.cmch-vellore.edu",
+            "status": "Active"
+        },
+        # Engineering
+        {
+            "name": "Indian Institute of Technology Bombay (IITB)",
+            "location": "Powai, Mumbai",
+            "state": "Maharashtra",
+            "city": "Mumbai",
+            "course": "Engineering",
+            "specializations": "Computer Science, Electrical, Mechanical, Aerospace, Chemical",
+            "neet_required": False,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$8,000 USD / year",
+            "international_fee_structure": "$10,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.iitb.ac.in",
+            "status": "Active"
+        },
+        {
+            "name": "National Institute of Technology (NIT) Trichy",
+            "location": "Tanjore Main Road, Tiruchirappalli",
+            "state": "Tamil Nadu",
+            "city": "Tiruchirappalli",
+            "course": "Engineering",
+            "specializations": "Computer Science, Electronics & Communication, Mechanical, Civil",
+            "neet_required": False,
+            "dasa_eligible": True,
+            "ciwg_eligible": True,
+            "nri_fee_structure": "$8,000 USD / year",
+            "international_fee_structure": "$9,500 USD / year",
+            "hostel_available": True,
+            "website": "https://www.nitt.edu",
+            "status": "Active"
+        },
+        {
+            "name": "BITS Pilani",
+            "location": "Vidya Vihar, Pilani",
+            "state": "Rajasthan",
+            "city": "Pilani",
+            "course": "Engineering",
+            "specializations": "Computer Science, Electronics & Instrumentation, Mechanical, Chemical",
+            "neet_required": False,
+            "dasa_eligible": True,
+            "ciwg_eligible": True,
+            "nri_fee_structure": "$9,000 USD / year",
+            "international_fee_structure": "$11,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.bits-pilani.ac.in",
+            "status": "Active"
+        },
+        # Management
+        {
+            "name": "Indian Institute of Management Ahmedabad (IIMA)",
+            "location": "Vastrapur, Ahmedabad",
+            "state": "Gujarat",
+            "city": "Ahmedabad",
+            "course": "Management",
+            "specializations": "Post Graduate Programme (PGP) in Management, PGP-FABM",
+            "neet_required": False,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$35,000 USD / program",
+            "international_fee_structure": "$40,000 USD / program",
+            "hostel_available": True,
+            "website": "https://www.iima.ac.in",
+            "status": "Active"
+        },
+        {
+            "name": "IIM Bangalore (IIMB)",
+            "location": "Bannerghatta Road, Bangalore",
+            "state": "Karnataka",
+            "city": "Bangalore",
+            "course": "Management",
+            "specializations": "MBA, Post Graduate Programme in Business Analytics",
+            "neet_required": False,
+            "dasa_eligible": False,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$33,000 USD / program",
+            "international_fee_structure": "$38,000 USD / program",
+            "hostel_available": True,
+            "website": "https://www.iimb.ac.in",
+            "status": "Active"
+        },
+        {
+            "name": "Symbiosis Institute of Business Management (SIBM)",
+            "location": "Lavale, Pune",
+            "state": "Maharashtra",
+            "city": "Pune",
+            "course": "Management",
+            "specializations": "MBA in Marketing, Finance, HR, Operations",
+            "neet_required": False,
+            "dasa_eligible": True,
+            "ciwg_eligible": False,
+            "nri_fee_structure": "$15,000 USD / year",
+            "international_fee_structure": "$18,000 USD / year",
+            "hostel_available": True,
+            "website": "https://www.sibmpune.edu.in",
+            "status": "Active"
+        }
+    ]
+
+    for col in colleges:
+        db.add(IndianCollege(**col))
+    db.commit()
+    logger.info("Indian colleges seeded successfully.")
 
 
+def seed_mbbs_universities(db: Session):
+    """
+    Seeds verified NMC-approved MBBS universities abroad (Georgia, Russia, Kazakhstan, etc.)
+    """
+    from ..models import MBBSUniversity
 
+    if db.query(MBBSUniversity).count() > 0:
+        return
+
+    logger.info("Seeding top NMC-approved MBBS universities database...")
+    unis = [
+        {
+            "name": "Tbilisi State Medical University",
+            "country": "Georgia",
+            "nmc_approved": True,
+            "annual_fees": "$8,000 USD",
+            "hostel_fees": "$1,200 USD",
+            "living_cost": "$2,500 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB (General), NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG, WFME",
+            "status": "Active"
+        },
+        {
+            "name": "Kazan Federal University",
+            "country": "Russia",
+            "nmc_approved": True,
+            "annual_fees": "$6,000 USD",
+            "hostel_fees": "$500 USD",
+            "living_cost": "$1,800 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, UNESCO",
+            "status": "Active"
+        },
+        {
+            "name": "Kazakh National Medical University",
+            "country": "Kazakhstan",
+            "nmc_approved": True,
+            "annual_fees": "$5,000 USD",
+            "hostel_fees": "$600 USD",
+            "living_cost": "$1,500 USD",
+            "duration": 5,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG",
+            "status": "Active"
+        },
+        {
+            "name": "Tashkent Medical Academy",
+            "country": "Uzbekistan",
+            "nmc_approved": True,
+            "annual_fees": "$4,500 USD",
+            "hostel_fees": "$600 USD",
+            "living_cost": "$1,400 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG",
+            "status": "Active"
+        },
+        {
+            "name": "University of Perpetual Help System DALTA",
+            "country": "Philippines",
+            "nmc_approved": True,
+            "annual_fees": "$5,500 USD",
+            "hostel_fees": "$1,000 USD",
+            "living_cost": "$2,000 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB, NMAT and NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG, CHED",
+            "status": "Active"
+        },
+        {
+            "name": "Dhaka National Medical College",
+            "country": "Bangladesh",
+            "nmc_approved": True,
+            "annual_fees": "$7,500 USD",
+            "hostel_fees": "$1,000 USD",
+            "living_cost": "$1,500 USD",
+            "duration": 5,
+            "language": "English",
+            "eligibility": "GPA 7.0 combined in SSC and HSC (minimum GPA 3.5 in Biology), NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, BMDC",
+            "status": "Active"
+        },
+        {
+            "name": "Cairo University Faculty of Medicine",
+            "country": "Egypt",
+            "nmc_approved": True,
+            "annual_fees": "$6,000 USD",
+            "hostel_fees": "$1,200 USD",
+            "living_cost": "$2,200 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "50% in Class 12 PCB, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG",
+            "status": "Active"
+        },
+        {
+            "name": "Carol Davila University of Medicine and Pharmacy",
+            "country": "Romania",
+            "nmc_approved": True,
+            "annual_fees": "$8,500 USD",
+            "hostel_fees": "$1,500 USD",
+            "living_cost": "$3,000 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "High School Diploma with Biology and Chemistry credits, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG, COMS",
+            "status": "Active"
+        },
+        {
+            "name": "University of Belgrade Faculty of Medicine",
+            "country": "Serbia",
+            "nmc_approved": True,
+            "annual_fees": "$9,000 USD",
+            "hostel_fees": "$1,800 USD",
+            "living_cost": "$3,500 USD",
+            "duration": 6,
+            "language": "English",
+            "eligibility": "Class 12 PCB high marks, Entrance Test in Bio & Chem, NEET Qualified",
+            "minimum_neet": 137,
+            "recognition": "WHO, NMC, ECFMG",
+            "status": "Active"
+        }
+    ]
+
+    for u in unis:
+        db.add(MBBSUniversity(**u))
+    db.commit()
+    logger.info("MBBS universities seeded successfully.")

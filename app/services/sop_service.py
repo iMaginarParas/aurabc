@@ -10,10 +10,15 @@ logger = logging.getLogger(__name__)
 openai_client = None
 if settings.openai_api_key:
     try:
-        openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
-        logger.info("Replicate client initialized successfully in SOP Service.")
+        if settings.openai_api_key.startswith("sk-"):
+            import openai
+            openai_client = openai.OpenAI(api_key=settings.openai_api_key)
+            logger.info("Official OpenAI client initialized successfully in SOP Service.")
+        else:
+            openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
+            logger.info("Replicate client proxy initialized successfully in SOP Service.")
     except Exception as e:
-        logger.error(f"Failed to initialize Replicate client in SOP: {str(e)}")
+        logger.error(f"Failed to initialize OpenAI client in SOP: {str(e)}")
 
 
 def get_sop_system_prompt() -> str:

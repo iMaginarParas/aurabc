@@ -3,6 +3,7 @@ import replicate
 import json
 import logging
 from fastapi import HTTPException, status
+from typing import Optional, List
 from ..config import settings
 from ..prompts.eligibility_prompts import SYSTEM_PROMPT, format_eligibility_prompt
 from ..schemas import AIResultEvaluation
@@ -69,11 +70,15 @@ class ReplicateOpenAIMock:
 # Initialize Replicate mock client
 client = None
 if settings.openai_api_key:
-    client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
+    if settings.openai_api_key.startswith("sk-"):
+        import openai
+        client = openai.OpenAI(api_key=settings.openai_api_key)
+    else:
+        client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
 else:
     logger.warning("OPENAI_API_KEY is not configured in settings.")
 
-def evaluate_student_profile(profile_dict: dict) -> AIResultEvaluation:
+def evaluate_student_profile(profile_dict: dict, allowed_countries: Optional[List[str]] = None) -> AIResultEvaluation:
     """
     Sends the student profile details to the OpenAI API and returns a structured evaluation.
     Rejects requests and throws error in production if the AI service fails or is unconfigured.
@@ -86,6 +91,8 @@ def evaluate_student_profile(profile_dict: dict) -> AIResultEvaluation:
         )
 
     user_prompt = format_eligibility_prompt(profile_dict)
+    if allowed_countries:
+        user_prompt += f"\n\nCRITICAL SYSTEM FILTER CONSTRAINT: You are ONLY allowed to recommend universities and countries from the following list: {', '.join(allowed_countries)}. DO NOT output any recommendations outside this list."
     
     try:
         logger.info("Calling OpenAI API for student profile evaluation...")

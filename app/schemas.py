@@ -440,6 +440,8 @@ class DashboardOverviewResponse(BaseModel):
     unread_notifications_count: int
     total_drafts_count: int
     total_payments_count: int
+    country_tier: int = 1
+    country_tier_name: str = "Free"
 
 
 # UNIVERSITY MATCHER SCHEMAS
@@ -1139,3 +1141,64 @@ class SettingsResponse(BaseModel):
     appearance: AppearanceSettingsUpdate
     connected_accounts: List[ConnectedAccountSchema]
     security: Dict[str, Any]
+
+class IndianCollegeProfileInput(BaseModel):
+    course: str
+    budget: str
+    preferred_state: Optional[str] = None
+    preferred_city: Optional[str] = None
+    neet_score: Optional[int] = None
+    dasa_eligible: bool = False
+    ciwg_eligible: bool = False
+    nri_status: bool = False
+
+class IndianCollegeRecommendationSchema(BaseModel):
+    match_percentage: int
+    college_name: str
+    location: str
+    course: str
+    specializations: Optional[str] = None
+    estimated_fees: str
+    eligibility: str
+    hostel_available: bool
+    website: Optional[str] = None
+    ai_recommendation_summary: str
+
+class IndianCollegeMatchResponse(BaseModel):
+    id: str
+    profile_data: Dict[str, Any]
+    recommendations: List[Dict[str, Any]]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class MBBSProfileInput(BaseModel):
+    neet_score: int
+    category: str
+    budget: str
+    preferred_countries: List[str]
+    preferred_language: str
+    hostel_required: bool
+    scholarship_required: bool
+    passport_status: str
+
+class MBBSRecommendationSchema(BaseModel):
+    match_percentage: int
+    university_name: str
+    country: str
+    estimated_tuition: str
+    living_costs: str
+    scholarship_availability: str
+    visa_difficulty: str
+    career_opportunities: str
+    ai_recommendation_summary: str
+
+class MBBSMatchResponse(BaseModel):
+    id: str
+    profile_data: Dict[str, Any]
+    recommendations: List[Dict[str, Any]]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

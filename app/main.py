@@ -12,6 +12,7 @@ from .api.visa_checker import router as visa_checker_router
 from .api.dashboard import router as dashboard_router
 from .api.chat import router as chat_router
 from .api.university_matcher import router as university_matcher_router
+from .api.mbbs_matcher import router as mbbs_matcher_router
 from .api.applications import router as applications_router
 from .api.visa_success import router as visa_success_router
 from .api.scholarships import router as scholarships_router
@@ -21,7 +22,7 @@ from .api.explorer import router as explorer_router
 from .api.knowledge import router as knowledge_router
 from .api.communication import router as communication_router
 from .api.profile import router as profile_router
-from .services.payment_service import seed_initial_services, seed_dashboard_defaults, seed_universities, seed_applications, seed_scholarships, seed_whatsapp_defaults
+from .services.payment_service import seed_initial_services, seed_dashboard_defaults, seed_universities, seed_applications, seed_scholarships, seed_whatsapp_defaults, seed_indian_colleges, seed_mbbs_universities
 from .services.explorer_service import seed_explorer_data
 from .services.knowledge_service import seed_knowledge_data
 from .services.communication_service import seed_communication_data
@@ -48,6 +49,8 @@ try:
         seed_explorer_data(db)
         seed_knowledge_data(db)
         seed_communication_data(db)
+        seed_indian_colleges(db)
+        seed_mbbs_universities(db)
     finally:
         db.close()
 except Exception as e:
@@ -107,6 +110,7 @@ app.include_router(visa_checker_router)
 app.include_router(dashboard_router)
 app.include_router(chat_router)
 app.include_router(university_matcher_router)
+app.include_router(mbbs_matcher_router)
 app.include_router(applications_router)
 app.include_router(visa_success_router)
 app.include_router(scholarships_router)

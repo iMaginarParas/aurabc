@@ -12,10 +12,15 @@ logger = logging.getLogger(__name__)
 openai_client = None
 if settings.openai_api_key:
     try:
-        openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
-        logger.info("Replicate client initialized successfully in Visa Service.")
+        if settings.openai_api_key.startswith("sk-"):
+            import openai
+            openai_client = openai.OpenAI(api_key=settings.openai_api_key)
+            logger.info("Official OpenAI client initialized successfully in Visa Service.")
+        else:
+            openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
+            logger.info("Replicate client proxy initialized successfully in Visa Service.")
     except Exception as e:
-        logger.error(f"Failed to initialize Replicate client in Visa: {str(e)}")
+        logger.error(f"Failed to initialize OpenAI client in Visa: {str(e)}")
 
 def load_country_visa_rules(country: str) -> Dict[str, Any]:
     """
@@ -105,6 +110,27 @@ def simulate_document_ocr_text(doc_type: str, filename: str) -> str:
         if "old" in name_clean:
             days_old = 120
         return f"Police Clearance Certificate.\nIssued To: Priyan Bose\nDate of Issue: {days_old} days ago\nCriminal Record Status: NIL / No criminal records logged."
+        
+    elif "neet" in name_clean or doc_type == "NEET Score Card":
+        score = 610
+        if "fail" in name_clean or "low" in name_clean:
+            score = 110
+        return f"NEET (UG) Result Score Card.\nRoll Number: 3908201948\nCandidate Name: Priyan Bose\nScore: {score} / 720\nPercentile: 98.5%\nAll India Rank: 12500\nCategory: General\nStatus: Qualified for MBBS Counselling"
+        
+    elif "12th" in name_clean or "marksheet" in name_clean or doc_type == "Class 12 Marksheet":
+        pcb_marks = 85
+        if "low" in name_clean:
+            pcb_marks = 45
+        return f"Central Board of Secondary Education - Class XII Marksheet.\nName: Priyan Bose\nPhysics: {pcb_marks}/100\nChemistry: {pcb_marks-5}/100\nBiology: {pcb_marks+5}/100\nMathematics: 85/100\nEnglish: 90/100\nResult: PASS"
+        
+    elif "10th" in name_clean or doc_type == "Class 10 Marksheet":
+        return "Central Board of Secondary Education - Class X Certificate.\nName: Priyan Bose\nDOB: 1999-05-15\nCGPA: 9.2\nResult: PASS"
+        
+    elif "dasa" in name_clean or "ciwg" in name_clean or doc_type == "DASA/CIWG Certificate":
+        return "DASA / CIWG Placement Eligibility Certificate.\nApplicant: Priyan Bose\nSponsor Nationality: NRI / Foreign Citizen\nSchooling Abroad: Classes 11 and 12 completed at Indian High School, Dubai, UAE\nEligibility Status: Approved under DASA/CIWG quota"
+        
+    elif "sponsor" in name_clean or doc_type == "NRI Sponsor Documents":
+        return "NRI Sponsor Documentation Packet.\nSponsor Name: Joy Bose\nRelationship to Applicant: Father\nSponsor Residence: Dubai, UAE\nSponsor Passport: Z8761234\nSponsor Bank Account Closing Balance: 35,000 USD"
 
     # Generic OCR template
     return f"OCR Text Extract from file: {filename}\nCategory: {doc_type}\nName Match: Priyan Bose\nContent validity signature: Standard Official Document Stamp."
@@ -136,8 +162,9 @@ def evaluate_visa_documents_ai(
             "ocr_extract": ocr_text
         })
         
-    system_prompt = """You are an expert visa officer, document intelligence analyst, and immigration advisor.
-Your task is to analyze the provided OCR document extracts against country-specific visa rules and generate a Visa Readiness Report in strict JSON format.
+    system_prompt = """You are an expert visa officer, academic admissions document analyst, and immigration advisor.
+Your task is to analyze the provided OCR document extracts against country-specific visa, NRI quota, and academic admission rules, and generate a Visa/Admission Readiness Report in strict JSON format.
+You must verify requirements for global student visas, Indian domestic admissions (like NEET scores, board marksheets), and NRI/International admissions (such as DASA, CIWG quotas, sponsor verification, and visa paperwork).
 
 JSON RESPONSE SCHEMA SPECIFICATION:
 Your response must be a single JSON object. Do NOT wrap the JSON inside markdown code blocks (e.g. ```json). Output only the raw JSON.

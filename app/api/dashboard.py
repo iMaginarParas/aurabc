@@ -87,6 +87,15 @@ def get_dashboard_overview(
         Appointment.status == "upcoming"
     ).order_by(Appointment.date_time).limit(5).all()
 
+    # 5. Retrieve user country tier access
+    from ..models import UserCountryTier
+    tier_access = db.query(UserCountryTier).filter(UserCountryTier.user_id == user_id).first()
+    tier_val = 1
+    tier_name = "Free"
+    if tier_access:
+        tier_val = tier_access.tier_purchased
+        tier_name = "Tier 2" if tier_val == 2 else ("Tier 3" if tier_val == 3 else "Free")
+
     return {
         "profile_completeness": completeness,
         "purchased_services": purchased_slugs,
@@ -94,7 +103,9 @@ def get_dashboard_overview(
         "upcoming_appointments": upcoming_appointments,
         "unread_notifications_count": unread_notifications,
         "total_drafts_count": total_drafts,
-        "total_payments_count": total_payments
+        "total_payments_count": total_payments,
+        "country_tier": tier_val,
+        "country_tier_name": tier_name
     }
 
 
