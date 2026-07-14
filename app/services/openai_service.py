@@ -34,6 +34,8 @@ class ReplicateOpenAIMock:
                         user_prompt = content
                 
                 replicate_model = f"openai/{model}" if not model.startswith("openai/") else model
+                if replicate_model.startswith("openai/"):
+                    replicate_model = "meta/meta-llama-3-70b-instruct"
                 
                 output = replicate.run(
                     replicate_model,
