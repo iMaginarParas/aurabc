@@ -9,12 +9,16 @@ from ..models import University
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI
 openai_client = None
 if settings.openai_api_key:
     try:
-        openai_client = openai.OpenAI(api_key=settings.openai_api_key)
-        logger.info("OpenAI client initialized successfully in Match Service.")
+        if settings.openai_api_key.startswith("sk-"):
+            openai_client = openai.OpenAI(api_key=settings.openai_api_key)
+            logger.info("Official OpenAI client initialized successfully in Match Service.")
+        else:
+            from .openai_service import ReplicateOpenAIMock
+            openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
+            logger.info("Replicate client proxy initialized successfully in Match Service.")
     except Exception as e:
         logger.error(f"Failed to initialize OpenAI client in Matcher: {str(e)}")
 

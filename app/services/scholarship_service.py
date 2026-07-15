@@ -9,12 +9,16 @@ from ..models import Scholarship
 
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI
 openai_client = None
 if settings.openai_api_key:
     try:
-        openai_client = openai.OpenAI(api_key=settings.openai_api_key)
-        logger.info("OpenAI client initialized successfully in Scholarship Service.")
+        if settings.openai_api_key.startswith("sk-"):
+            openai_client = openai.OpenAI(api_key=settings.openai_api_key)
+            logger.info("Official OpenAI client initialized successfully in Scholarship Service.")
+        else:
+            from .openai_service import ReplicateOpenAIMock
+            openai_client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
+            logger.info("Replicate client proxy initialized successfully in Scholarship Service.")
     except Exception as e:
         logger.error(f"Failed to initialize OpenAI client in Scholarship Matcher: {str(e)}")
 
