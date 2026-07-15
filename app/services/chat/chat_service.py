@@ -86,6 +86,8 @@ class ChatService:
 
             if self.is_replicate:
                 replicate_model = f"openai/{model_name}" if not model_name.startswith("openai/") else model_name
+                if replicate_model.startswith("openai/"):
+                    replicate_model = "meta/meta-llama-3-70b-instruct"
                 
                 # Combine chat messages history for Replicate OpenAI proxy format
                 system_prompt = ""

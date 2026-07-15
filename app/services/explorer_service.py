@@ -1474,13 +1474,17 @@ def get_ai_university_summary(university_name: str, country: str, course: str, s
     Generates an AI-powered university summary for a specific student profile using OpenAI.
     """
     try:
-        from openai import OpenAI
         from ..config import settings
+        from .openai_service import ReplicateOpenAIMock
+        import openai
 
         if not settings.openai_api_key:
             return f"{university_name} is a world-class institution in {country} offering excellent opportunities for {course} students."
 
-        client = OpenAI(api_key=settings.openai_api_key)
+        if settings.openai_api_key.startswith("sk-"):
+            client = openai.OpenAI(api_key=settings.openai_api_key)
+        else:
+            client = ReplicateOpenAIMock(api_key=settings.openai_api_key)
 
         gpa = student_profile.get("gpa", "N/A")
         ielts = student_profile.get("ielts", "N/A")
